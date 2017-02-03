@@ -14,6 +14,7 @@ import numpy as np
 import sys
 from DpInputData import InputData
 from DpConfigurations import Configurations
+from DpOutputData import OutputData
 from DpStory import Story
 from DpTLCD import TLCD
 from DpExcitation import Excitation
@@ -27,7 +28,10 @@ from DynaPy.DynaSolver import *
 inputData = InputData()
 inputData.configurations = Configurations()
 
-dynamicResponse = None
+outputData = None
+
+debugOption = True
+np.set_printoptions(linewidth=100, precision=2)
 
 
 class MainWindow(QMainWindow):
@@ -86,8 +90,12 @@ class MainWindow(QMainWindow):
         self.main_menu()
 
         # Show GUI
-        # self.show()
         self.showMaximized()
+
+        # DEBUG OPTION - LOAD IMMEDIATELY
+        if debugOption:
+            self.open_file()
+            self.run_simulation()
 
     def new_file_action(self):
         """
@@ -117,6 +125,7 @@ class MainWindow(QMainWindow):
 
         # Reset save file
         self.fileName = None
+        self.setWindowTitle('Dynapy TLCD Analyser')
 
         # Reset GUI
         for i in range(structureTab.combox0.count()-1, 0, -1):
@@ -171,7 +180,13 @@ class MainWindow(QMainWindow):
         :return: None
         """
         self.new_file()
-        self.fileName = QFileDialog.getOpenFileName(self, 'Salvar como', './save', filter="txt (*.txt)")
+
+        # DEBUG OPTION - IMMEDIATELY OPEN
+        if debugOption:
+            self.fileName = './save/001.dpfl'
+        else:
+            self.fileName = QFileDialog.getOpenFileName(self, 'Salvar como', './save', filter="DynaPy File (*.dpfl)")
+        self.setWindowTitle('Dynapy TLCD Analyser - [{}]'.format(self.fileName))
         self.file = open(self.fileName, 'r', encoding='utf-8')
         self.file.readline()
         self.file.readline()
@@ -345,7 +360,8 @@ class MainWindow(QMainWindow):
 
         :return: None
         """
-        self.fileName = QFileDialog.getSaveFileName(self, 'Salvar como', './save', filter="txt (*.txt)")
+        self.fileName = QFileDialog.getSaveFileName(self, 'Salvar como', './save', filter="DynaPy File (*.dpfl)")
+        self.setWindowTitle('Dynapy TLCD Analyser - [{}]'.format(self.fileName))
         self.save_file()
 
     def export_report_action(self):
@@ -456,15 +472,15 @@ class MainWindow(QMainWindow):
             self.mainWidget.tabs.excitationTab.add_excitation()
 
             # Assemble matrices
-            self.mass = assemble_mass_matrix(inputData.stories, inputData.tlcd)
-            self.damping = assemble_damping_matrix(inputData.stories, inputData.tlcd)
-            self.stiffness = assemble_stiffness_matrix(inputData.stories, inputData.tlcd)
-            self.force = assemble_force_matrix(inputData.excitation, self.mass, inputData.configurations)
+            mass = assemble_mass_matrix(inputData.stories, inputData.tlcd)
+            damping = assemble_damping_matrix(inputData.stories, inputData.tlcd)
+            stiffness = assemble_stiffness_matrix(inputData.stories, inputData.tlcd)
+            force = assemble_force_matrix(inputData.excitation, mass, inputData.configurations)
 
             # Calculate response
-            global dynamicResponse
-            dynamicResponse = ODESolver(self.mass, self.damping, self.stiffness, self.force,
-                                             inputData.configurations)
+            global outputData
+            outputData = OutputData(mass, damping, stiffness, force,
+                                    inputData.configurations)
 
             # Generate plot
             self.mainWidget.tabs.dynRespTab.add_list1_items()
@@ -473,7 +489,7 @@ class MainWindow(QMainWindow):
             self.mainWidget.tabs.dynRespTab.plot_dyn_resp()
 
             # Generate report
-            self.mainWidget.tabs.reportTab.generate_report()
+            self.mainWidget.tabs.reportTab.generate_report_simulation()
 
     def run_set_of_simulations_action(self):
         """
@@ -984,8 +1000,156 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         self.grid.addWidget(self.te1, 1, 1)
         self.setLayout(self.grid)
 
-    def generate_report(self):
-        report = ''
+    def generate_report_simulation(self):
+        self.title = "DynaPy TLCD Analyser - Relatório\nAnálise do Sistema Estrutura-TLCD Sob Único Caso de Excitação"
+
+        self.h1_vars = "Variáveis de Entrada"
+
+        self.h2_struct = "Estrutura"
+
+        self.struct_num = "Número de pavimentos: {}".format(len(inputData.stories))
+
+        self.storiesTable = []
+
+        for i in range(1, len(inputData.stories) + 1):
+            self.storiesTable.append([i,
+                                      inputData.stories[i].mass/1000,
+                                      inputData.stories[i].height,
+                                      inputData.stories[i].width*100,
+                                      inputData.stories[i].depth*100,
+                                      inputData.stories[i].E/1e9,
+                                      inputData.stories[i].vinculum])
+
+        self.storiesData = ''
+
+        for i in self.storiesTable:
+            self.storiesData += """Pavimento {}:
+Massa: {} ton
+Altura: {} m
+Largura dos pilares: {} cm
+Profundidade dos pilares: {} cm
+Módulo de elasticidade dos pilares: {} GPa
+
+""".format(i[0], i[1], i[2], i[3], i[4], i[5])
+
+        self.h2_TLCD = 'TLCD'
+
+        if inputData.tlcd.type == 'TLCD Simples':
+            self.tlcdData = """Tipo: {}
+Diâmetro: {} cm
+Altura da lamina d'água: {} cm
+Largura: {} m""".format(inputData.tlcd.type, inputData.tlcd.diameter*100,
+                        inputData.tlcd.waterHeight*100, inputData.tlcd.width)
+
+        self.h2_exct = 'Excitação'
+
+        if inputData.excitation.type == 'Seno':
+            if inputData.excitation.relativeFrequency:
+                self.freq = '{} * (frequência natural do último pavimento)'.format(
+                    inputData.excitation.frequencyInput) + ' = {:.2f} rad/s'.format(inputData.excitation.frequency)
+            else:
+                self.freq = '{} rad/s'.format(inputData.excitation.frequency)
+            self.exctData = """Tipo de excitação: {}
+Amplitude: {} m/s²
+Frequência: {}
+Duração da excitação: {} s
+Tempo de análise: {} s""".format(inputData.excitation.type, inputData.excitation.amplitude, self.freq,
+                                 inputData.excitation.exctDuration, inputData.excitation.anlyDuration)
+
+        self.h2_config = 'Configurações'
+
+        self.configData = """Método: {}
+Passo de tempo: {} s
+Deslocamento inicial: {} m
+Velocidade inicial: {} m
+Taxa de amortecimento da estrutura: {}
+Massa específica do líquido: {} (kg/m3)
+Viscosidade cinemática: {} (m²/s)
+Aceleração da gravidade: {} (m/s²)""".format(inputData.configurations.method, inputData.configurations.timeStep,
+                                             inputData.configurations.initialDisplacement,
+                                             inputData.configurations.initialVelocity,
+                                             inputData.configurations.relativeDampingRatio,
+                                             inputData.configurations.liquidSpecificMass,
+                                             inputData.configurations.kineticViscosity,
+                                             inputData.configurations.gravity)
+
+        self.h1_matrices = 'Equação de Movimento'
+
+        self.equation = '[M]{a} + [C]{v} + [k]{x} = {F(t)}'
+
+        self.h2_M = 'Matriz de Massa ([M] em kg)'
+
+        self.h2_C = 'Matriz de Amortecimento ([C] em kg/s)'
+
+        self.h2_K = 'Matriz de Rigidez ([K] em N/m)'
+
+        self.h2_F = 'Vetor de Força em função do Tempo ({F(t)} em N)'
+
+        self.h1_dynResp = 'Resposta Dinâmica'
+
+        i = len(inputData.stories) - 1
+
+        self.dmf = 'Fator de amplificação dinâmica (DMF): {:.2f}'.format(
+            max(outputData.dynamicResponse.x[i, :].A1) / (
+                outputData.massMatrix[i, i] * inputData.excitation.amplitude / outputData.stiffnessMatrix[i, i]))
+
+        self.plot = "Vide gráficos na aba Resposta Dinâmica"
+
+        # In-app report assembly
+        report = """{}
+---------------------------------------------------------------------------------------
+
+### {} ###
+
+# {}
+
+{}
+
+{}# {}
+
+{}
+
+# {}
+
+{}
+
+# {}
+
+{}
+
+### {} ###
+
+{}
+
+{}
+{}
+
+{}
+{}
+
+{}
+{}
+
+{}
+{}
+
+### {} ###
+
+{}
+{}
+
+        """.format(self.title, self.h1_vars,
+                   self.h2_struct, self.struct_num, self.storiesData,
+                   self.h2_TLCD, self.tlcdData,
+                   self.h2_exct, self.exctData,
+                   self.h2_config, self.configData,
+                   self.h1_matrices, self.equation,
+                   self.h2_M, outputData.massMatrix,
+                   self.h2_C, outputData.dampingMatrix,
+                   self.h2_K, outputData.stiffnessMatrix,
+                   self.h2_F, outputData.forceMatrix,
+                   self.h1_dynResp, self.dmf, self.plot)
+
         self.te1.setText(report)
 
 
@@ -1102,7 +1266,7 @@ class DynRespTab(QWidget):
 
     def plot_dyn_resp(self):
         """ Reads the plot type and the QListWidget of DOFs to plot. Makes a list of DOFs to plot and send
-        dynamicResponse and plotList to plot_displacement
+        outputData.dynamicResponse and plotList to plot_displacement
 
         :return:
         """
@@ -1118,11 +1282,11 @@ class DynRespTab(QWidget):
                 plotList.append((get_text(self.list1), True))
 
         if plotType == 'Deslocamento':
-            self.dynRespCanvas.plot_displacement(dynamicResponse, plotList)
+            self.dynRespCanvas.plot_displacement(outputData.dynamicResponse, plotList)
         elif plotType == 'Velocidade':
-            self.dynRespCanvas.plot_velocity(dynamicResponse, plotList)
+            self.dynRespCanvas.plot_velocity(outputData.dynamicResponse, plotList)
         elif plotType == 'Aceleração':
-            self.dynRespCanvas.plot_acceleration(dynamicResponse, plotList)
+            self.dynRespCanvas.plot_acceleration(outputData.dynamicResponse, plotList)
 
 
 class DMFTab(QWidget):
