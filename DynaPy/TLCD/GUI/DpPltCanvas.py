@@ -109,3 +109,8 @@ class PltCanvas(FigureCanvas):
         self.axes.set_xlabel('t (s)')
         self.axes.set_ylabel(r'a (m/$s^2$)')
         self.draw()
+
+    def reset_canvas(self):
+        self.axes.hold(False)
+        self.axes.plot([], [])
+        self.draw()

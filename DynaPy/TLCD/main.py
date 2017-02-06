@@ -30,7 +30,7 @@ inputData.configurations = Configurations()
 
 outputData = None
 
-debugOption = True
+debugOption = False
 np.set_printoptions(linewidth=100, precision=2)
 
 
@@ -71,6 +71,9 @@ class MainWindow(QMainWindow):
         # Configurations Menu actions
         self.methods_menu()
         self.time_step_action()
+        self.boundary_conditions_action()
+        self.structure_damping_action()
+        self.fluid_parameters_action()
 
         # Run Menu actions
         self.run_simulation_action()
@@ -123,6 +126,9 @@ class MainWindow(QMainWindow):
         inputData = InputData()
         inputData.configurations = Configurations()
 
+        # Reset method
+        self.set_method_mdf()
+
         # Reset save file
         self.fileName = None
         self.setWindowTitle('Dynapy TLCD Analyser')
@@ -155,13 +161,21 @@ class MainWindow(QMainWindow):
         excitationTab.excitationCanvas.plot_excitation([], [])
 
         reportTab = self.mainWidget.tabs.reportTab
+        reportTab.te1.setText("""Relatório ainda não gerado.
+Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.""")
+        reportTab.te1.setFont(QFont("Times", 14))
 
         dynRespTab = self.mainWidget.tabs.dynRespTab
-        # dynRespTab.dynRespCanvas.plot_displacement([], [])
+        dynRespTab.list1.clear()
+        dynRespTab.list2.clear()
+        dynRespTab.dynRespCanvas.reset_canvas()
 
         dmfTab = self.mainWidget.tabs.dmfTab
 
         animationTab = self.mainWidget.tabs.animationTab
+
+        self.exportReportAct.setDisabled(True)
+        self.exportAnimationAct.setDisabled(True)
 
     def open_file_action(self):
         """
@@ -374,6 +388,7 @@ class MainWindow(QMainWindow):
         self.exportReportAct = QAction('Exportar relatório...', self)
         self.exportReportAct.setShortcut('Ctrl+Alt+E')
         # self.exportReportAct.triggered.connect(sys.exit)
+        self.exportReportAct.setDisabled(True)
         # TODO implement export report code
 
     def export_animation_action(self):
@@ -385,6 +400,7 @@ class MainWindow(QMainWindow):
         self.exportAnimationAct = QAction('Exportar animação...', self)
         self.exportAnimationAct.setShortcut('Ctrl+Shift+E')
         # self.exportAnimationAct.triggered.connect(sys.exit)
+        self.exportAnimationAct.setDisabled(True)
         # TODO implement export animation code
 
     def quit_action(self):
@@ -419,8 +435,152 @@ class MainWindow(QMainWindow):
     def time_step_action(self):
         self.timeStepAct = QAction('Passo...', self)
         self.timeStepAct.setStatusTip('Altera o passo de tempo utilizado nas iterações')
-        # self.timeStepAct.triggered.connect(sys.exit)
-        # TODO Add message box and use it to pass time step info
+        self.timeStepAct.triggered.connect(self.time_step)
+
+    def time_step(self):
+        self.timeStepDialog = QWidget()
+        self.timeStepDialog.grid = QGridLayout()
+        self.timeStepDialog.label = QLabel('Passo de tempo: (s)', self)
+        self.timeStepDialog.le = QLineEdit(self)
+        self.timeStepDialog.le.setPlaceholderText('0.001')
+        self.timeStepDialog.le.setText(str(inputData.configurations.timeStep))
+        self.timeStepDialog.button = QPushButton('Ok', self)
+        self.timeStepDialog.button.clicked.connect(self.time_step_config)
+        self.timeStepDialog.grid.addWidget(self.timeStepDialog.label, 1, 1)
+        self.timeStepDialog.grid.addWidget(self.timeStepDialog.le, 1, 2)
+        self.timeStepDialog.grid.addWidget(self.timeStepDialog.button, 2, 1, 1, 2)
+        self.timeStepDialog.setLayout(self.timeStepDialog.grid)
+        self.timeStepDialog.setWindowTitle('Definição do passo de tempo')
+        self.timeStepDialog.setGeometry(300, 300, 300, 200)
+        self.timeStepDialog.show()
+
+    def time_step_config(self):
+        try:
+            inputData.configurations.timeStep = float(get_text(self.timeStepDialog.le))
+            self.timeStepDialog.hide()
+        except ValueError:
+            icon = QStyle.SP_MessageBoxWarning
+            self.error05 = QMessageBox()
+            self.error05.setText('O passo de tempo deve ser um número real')
+            self.error05.setWindowTitle('Erro 05')
+            self.error05.setWindowIcon(self.error05.style().standardIcon(icon))
+            self.error05.show()
+
+    def boundary_conditions_action(self):
+        self.boundaryConditionsAct = QAction('Condições de contorno...', self)
+        self.boundaryConditionsAct.setStatusTip('Altera deslocamento e velocidade inicial')
+        self.boundaryConditionsAct.triggered.connect(self.boundary_conditions)
+
+    def boundary_conditions(self):
+        self.boundaryConditionsDialog = QWidget()
+        self.boundaryConditionsDialog.grid = QGridLayout()
+        self.boundaryConditionsDialog.label1 = QLabel('Deslocamento inicial: (m)')
+        self.boundaryConditionsDialog.label2 = QLabel('Velocidade inicial: (m/s)')
+        self.boundaryConditionsDialog.le1 = QLineEdit(self)
+        self.boundaryConditionsDialog.le1.setPlaceholderText('0.00')
+        self.boundaryConditionsDialog.le1.setText(str(inputData.configurations.initialDisplacement))
+        self.boundaryConditionsDialog.le2 = QLineEdit(self)
+        self.boundaryConditionsDialog.le2.setPlaceholderText('0.00')
+        self.boundaryConditionsDialog.le2.setText(str(inputData.configurations.initialVelocity))
+        self.boundaryConditionsDialog.btn = QPushButton('Ok', self)
+        self.boundaryConditionsDialog.btn.clicked.connect(self.boundary_conditions_config)
+        self.boundaryConditionsDialog.grid.addWidget(self.boundaryConditionsDialog.label1, 1, 1)
+        self.boundaryConditionsDialog.grid.addWidget(self.boundaryConditionsDialog.label2, 2, 1)
+        self.boundaryConditionsDialog.grid.addWidget(self.boundaryConditionsDialog.le1, 1, 2)
+        self.boundaryConditionsDialog.grid.addWidget(self.boundaryConditionsDialog.le2, 2, 2)
+        self.boundaryConditionsDialog.grid.addWidget(self.boundaryConditionsDialog.btn, 3, 1, 1, 2)
+        self.boundaryConditionsDialog.setLayout(self.boundaryConditionsDialog.grid)
+        self.boundaryConditionsDialog.setWindowTitle('Definição das condições de contorno')
+        self.boundaryConditionsDialog.setGeometry(300, 300, 300, 200)
+        self.boundaryConditionsDialog.show()
+
+    def boundary_conditions_config(self):
+        try:
+            inputData.configurations.initialDisplacement = float(get_text(self.boundaryConditionsDialog.le1))
+            inputData.configurations.initialVelocity = float(get_text(self.boundaryConditionsDialog.le2))
+            self.boundaryConditionsDialog.hide()
+        except ValueError:
+            icon = QStyle.SP_MessageBoxWarning
+            self.error06 = QMessageBox()
+            self.error06.setText('Deslocamento e velocidade iniciais devem ser números reais')
+            self.error06.setWindowTitle('Erro 06')
+            self.error06.setWindowIcon(self.error06.style().standardIcon(icon))
+            self.error06.show()
+
+    def structure_damping_action(self):
+        self.structureDampingAct = QAction('Amortecimento da Estrutura...', self)
+        self.structureDampingAct.setStatusTip('Altera a taxa de amortecimento da estrutura')
+        self.structureDampingAct.triggered.connect(self.structure_damping)
+
+    def structure_damping(self):
+        self.structureDampingDialog = QWidget()
+        self.structureDampingDialog.grid = QGridLayout()
+        self.structureDampingDialog.label = QLabel('Taxa de amortecimento da estrutura:', self)
+        self.structureDampingDialog.le = QLineEdit(self)
+        self.structureDampingDialog.le.setPlaceholderText('0.02')
+        self.structureDampingDialog.le.setText(str(inputData.configurations.relativeDampingRatio))
+        self.structureDampingDialog.button = QPushButton('Ok', self)
+        self.structureDampingDialog.button.clicked.connect(self.structure_damping_config)
+        self.structureDampingDialog.grid.addWidget(self.structureDampingDialog.label, 1, 1)
+        self.structureDampingDialog.grid.addWidget(self.structureDampingDialog.le, 1, 2)
+        self.structureDampingDialog.grid.addWidget(self.structureDampingDialog.button, 2, 1, 1, 2)
+        self.structureDampingDialog.setLayout(self.structureDampingDialog.grid)
+        self.structureDampingDialog.setWindowTitle('Definição da taxa de amortecimento da estrutura')
+        self.structureDampingDialog.setGeometry(300, 300, 300, 200)
+        self.structureDampingDialog.show()
+
+    def structure_damping_config(self):
+        try:
+            inputData.configurations.relativeDampingRatio = float(get_text(self.structureDampingDialog.le))
+            self.structureDampingDialog.hide()
+        except ValueError:
+            icon = QStyle.SP_MessageBoxWarning
+            self.error07 = QMessageBox()
+            self.error07.setText('A taxa de amortecimento da estrutura deve ser um número real')
+            self.error07.setWindowTitle('Erro 07')
+            self.error07.setWindowIcon(self.error07.style().standardIcon(icon))
+            self.error07.show()
+
+    def fluid_parameters_action(self):
+        self.fluidParametersAct = QAction('Parâmetros do fluido...', self)
+        self.fluidParametersAct.setStatusTip('Altera os parâmetros do fluido')
+        self.fluidParametersAct.triggered.connect(self.fluid_parameters)
+
+    def fluid_parameters(self):
+        self.fluidParametersDialog = QWidget()
+        self.fluidParametersDialog.grid = QGridLayout()
+        self.fluidParametersDialog.label1 = QLabel('Massa específica: (kg/m³)')
+        self.fluidParametersDialog.label2 = QLabel('Viscosidade cinemática: (m²/s)')
+        self.fluidParametersDialog.le1 = QLineEdit(self)
+        self.fluidParametersDialog.le1.setPlaceholderText('998.2071')
+        self.fluidParametersDialog.le1.setText(str(inputData.configurations.liquidSpecificMass))
+        self.fluidParametersDialog.le2 = QLineEdit(self)
+        self.fluidParametersDialog.le2.setPlaceholderText('1.003e-6')
+        self.fluidParametersDialog.le2.setText(str(inputData.configurations.kineticViscosity))
+        self.fluidParametersDialog.btn = QPushButton('Ok', self)
+        self.fluidParametersDialog.btn.clicked.connect(self.fluid_parameters_config)
+        self.fluidParametersDialog.grid.addWidget(self.fluidParametersDialog.label1, 1, 1)
+        self.fluidParametersDialog.grid.addWidget(self.fluidParametersDialog.label2, 2, 1)
+        self.fluidParametersDialog.grid.addWidget(self.fluidParametersDialog.le1, 1, 2)
+        self.fluidParametersDialog.grid.addWidget(self.fluidParametersDialog.le2, 2, 2)
+        self.fluidParametersDialog.grid.addWidget(self.fluidParametersDialog.btn, 3, 1, 1, 2)
+        self.fluidParametersDialog.setLayout(self.fluidParametersDialog.grid)
+        self.fluidParametersDialog.setWindowTitle('Definição dos parâmetros do fluido')
+        self.fluidParametersDialog.setGeometry(300, 300, 300, 200)
+        self.fluidParametersDialog.show()
+
+    def fluid_parameters_config(self):
+        try:
+            inputData.configurations.liquidSpecificMass = float(get_text(self.fluidParametersDialog.le1))
+            inputData.configurations.kineticViscosity = float(get_text(self.fluidParametersDialog.le2))
+            self.fluidParametersDialog.hide()
+        except ValueError:
+            icon = QStyle.SP_MessageBoxWarning
+            self.error08 = QMessageBox()
+            self.error08.setText('Massa específica e viscosidade cinemática devem ser números reais')
+            self.error08.setWindowTitle('Erro 08')
+            self.error08.setWindowIcon(self.error08.style().standardIcon(icon))
+            self.error08.show()
 
     def set_method_mdf(self):
         self.mdfMethod.setChecked(True)
@@ -453,7 +613,6 @@ class MainWindow(QMainWindow):
             self.error04.setWindowTitle('Erro 04')
             self.error04.setWindowIcon(self.error04.style().standardIcon(icon))
             self.error04.show()
-            pass
         else:
             # Confirm tlcd
             self.mainWidget.tabs.tlcdTab.add_tlcd()
@@ -503,7 +662,8 @@ class MainWindow(QMainWindow):
         self.runSetofSimAct.setShortcut('Ctrl+Alt+R')
         self.runSetofSimAct.setStatusTip('Calcula e plota a o Fator de Amplificação Dinâmica' +
                                          ' em função da Relação de Frequências.')
-        self.runSetofSimAct.triggered.connect(sys.exit)
+        # self.runSetofSimAct.triggered.connect(sys.exit)
+        self.runSetofSimAct.setDisabled(True)
         # TODO Implement calculation and ploting code
 
     def run_optimization_action(self):
@@ -517,7 +677,8 @@ class MainWindow(QMainWindow):
         self.runOptimizationAct = QAction('Otimização', self)
         self.runOptimizationAct.setShortcut('Ctrl+Alt+Shift+R')
         self.runOptimizationAct.setStatusTip('Calcula e plota a resposta dinâmica da estrutura.')
-        self.runOptimizationAct.triggered.connect(sys.exit)
+        # self.runOptimizationAct.triggered.connect(sys.exit)
+        self.runOptimizationAct.setDisabled(True)
         # TODO Implement calculation and ploting code
 
     def run_animation_action(self):
@@ -531,7 +692,8 @@ class MainWindow(QMainWindow):
         self.runAnimationAct = QAction('Animação', self)
         self.runAnimationAct.setShortcut('Ctrl+Shift+R')
         self.runAnimationAct.setStatusTip('Gera animação da resposta dinâmica da estrutura.')
-        self.runAnimationAct.triggered.connect(sys.exit)
+        # self.runAnimationAct.triggered.connect(sys.exit)
+        self.runAnimationAct.setDisabled(True)
         # TODO Implement calculation and ploting code
 
     def maximize_action(self):
@@ -573,12 +735,15 @@ class MainWindow(QMainWindow):
         :return: None
         """
         self.aboutmsg = QMessageBox()
-        self.aboutmsg.setText('Dynapy SDOF GUI Application - Versão 0.1')
-        self.aboutmsg.setInformativeText('Esse programa toma os parâmetros de um sistema massa-mola-amortecedor, ' +
-                                         'da excitação do sistema e as variáveis de contorno do problema. Com esses ' +
-                                         'dados, o programa plota os gráifos de desolocamento, velocidade e ' +
-                                         'aceleração do sistema ao longo do tempo.')
-        self.aboutmsg.setWindowTitle('Dynapy SDOF GUI Application')
+        self.aboutmsg.setText('Dynapy TLCD Analyser - Versão 0.4')
+        self.aboutmsg.setInformativeText(
+            'Esse programa toma os dados de um edifício tipo "shear-building" equipado com um Amortecedor de ' +
+            'Coluna de Líquido Sintonizado (TLCD) e calcula a resposta dinâmica de cada um dos pavimentos. ' +
+            'Além disso, o software é capaz de fazer análises de frequências, otimizações e gerar animações. ' +
+            'Esse programa tem cunho puramente educacional. O autor não se responsabiliza pelo uso ou mau uso do ' +
+            'programa e pelos seus resultados. O usuário é responsávelo por toda e qualquer conclusão feita ' +
+            'com o uso do programa. Não existe nenhum compromisso de bom funcionamento ou qualquer garantia.')
+        self.aboutmsg.setWindowTitle('Dynapy TLCD Analyser')
         self.aboutmsg.setIconPixmap(QPixmap(None))
 
         self.aboutAct = QAction('Sobre', self)
@@ -637,6 +802,9 @@ class MainWindow(QMainWindow):
         configMenu = mainMenu.addMenu('Configurações')
         configMenu.addMenu(self.methodsMenu)
         configMenu.addAction(self.timeStepAct)
+        configMenu.addAction(self.boundaryConditionsAct)
+        configMenu.addAction(self.structureDampingAct)
+        configMenu.addAction(self.fluidParametersAct)
 
         # Create Run Menu and add Actions
         runMenu = mainMenu.addMenu('Calcular')
