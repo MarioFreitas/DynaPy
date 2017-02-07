@@ -31,7 +31,10 @@ class Excitation(object):
         for (i, j) in kwargs.items():
             exec('self.{} = {}'.format(i, j))
 
+        self.calc_frequency()
+
+    def calc_frequency(self):
         if self.relativeFrequency:
             mass = self.structure[len(self.structure)].mass + self.tlcd.mass
             stiffness = self.structure[len(self.structure)].stiffness
-            self.frequency = self.frequency * sqrt(stiffness / mass)
+            self.frequency = self.frequencyInput * sqrt(stiffness / mass)

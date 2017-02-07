@@ -1,5 +1,5 @@
 from math import pi
-from DpConfigurations import Configurations
+from DynaPy.TLCD.GUI.DpConfigurations import Configurations
 
 
 class TLCD(object):

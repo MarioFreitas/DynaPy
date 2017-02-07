@@ -12,16 +12,16 @@ from PyQt4.QtGui import *
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 import numpy as np
 import sys
-from DpInputData import InputData
-from DpConfigurations import Configurations
-from DpOutputData import OutputData
-from DpStory import Story
-from DpTLCD import TLCD
-from DpExcitation import Excitation
-from DpPltCanvas import PltCanvas
-from DpStructureCanvas import StructureCanvas
-from DpTLCDCanvas import TLCDCanvas
-from DpAnimationCanvas import AnimationCanvas
+from DynaPy.TLCD.GUI.DpInputData import InputData
+from DynaPy.TLCD.GUI.DpConfigurations import Configurations
+from DynaPy.TLCD.GUI.DpOutputData import OutputData
+from DynaPy.TLCD.GUI.DpStory import Story
+from DynaPy.TLCD.GUI.DpTLCD import TLCD
+from DynaPy.TLCD.GUI.DpExcitation import Excitation
+from DynaPy.TLCD.GUI.DpPltCanvas import PltCanvas
+from DynaPy.TLCD.GUI.DpStructureCanvas import StructureCanvas
+from DynaPy.TLCD.GUI.DpTLCDCanvas import TLCDCanvas
+from DynaPy.TLCD.GUI.DpAnimationCanvas import AnimationCanvas
 from DynaPy.lib import get_text
 from DynaPy.DynaSolver import *
 
@@ -32,6 +32,58 @@ outputData = None
 
 debugOption = False
 np.set_printoptions(linewidth=100, precision=2)
+
+from time import time
+
+
+class RunSimulationThread(QThread):
+    mySignal = pyqtSignal(OutputData)
+
+    def __init__(self, inputData_, parent=None):
+        super(RunSimulationThread, self).__init__(parent)
+        self.inputData = inputData_
+
+    def run(self):
+        # Assemble matrices
+        mass = assemble_mass_matrix(self.inputData.stories, self.inputData.tlcd)
+        damping = assemble_damping_matrix(self.inputData.stories, self.inputData.tlcd)
+        stiffness = assemble_stiffness_matrix(self.inputData.stories, self.inputData.tlcd)
+        force = assemble_force_matrix(self.inputData.excitation, mass, self.inputData.configurations)
+
+        outputData = OutputData(mass, damping, stiffness, force, self.inputData.configurations)
+        self.mySignal.emit(outputData)
+
+
+class RunSetOfSimulationsThread(QThread):
+    mySignal = pyqtSignal(list)
+    percentageSignal = pyqtSignal(float)
+
+    def __init__(self, inputData_, relativeFrequencies, parent=None):
+        super(RunSetOfSimulationsThread, self).__init__(parent)
+        self.inputData = inputData_
+        self.relativeFrequencies = relativeFrequencies
+
+    def run(self):
+        dmfList = []
+        totalIter = len(self.relativeFrequencies)
+        for i, j in zip(self.relativeFrequencies, range(len(self.relativeFrequencies))):
+            dmfList.append(self.simulation(self.inputData, i))
+            percentageDone = (j+1)/totalIter*100
+            self.percentageSignal.emit(percentageDone)
+        self.mySignal.emit(dmfList)
+
+    def simulation(self, inputData_,  relativeFrequency):
+        inputData_.excitation.frequencyInput = relativeFrequency
+        inputData_.excitation.relativeFrequency = True
+        inputData_.excitation.calc_frequency()
+
+        mass = assemble_mass_matrix(inputData_.stories, inputData_.tlcd)
+        damping = assemble_damping_matrix(inputData_.stories, inputData_.tlcd)
+        stiffness = assemble_stiffness_matrix(inputData_.stories, inputData_.tlcd)
+        force = assemble_force_matrix(inputData_.excitation, mass, inputData_.configurations)
+
+        outputData = OutputData(mass, damping, stiffness, force, inputData_.configurations)
+        return outputData.DMF
 
 
 class MainWindow(QMainWindow):
@@ -336,6 +388,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
                                  'de salvar.')
             self.error03.setWindowTitle('Erro 03')
             self.error03.setWindowIcon(self.error03.style().standardIcon(icon))
+            self.error03.setIcon(QMessageBox.Warning)
             self.error03.show()
         else:
             self.file = open(self.fileName, 'w', encoding='utf-8')
@@ -464,6 +517,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             self.error05.setText('O passo de tempo deve ser um número real')
             self.error05.setWindowTitle('Erro 05')
             self.error05.setWindowIcon(self.error05.style().standardIcon(icon))
+            self.error05.setIcon(QMessageBox.Warning)
             self.error05.show()
 
     def boundary_conditions_action(self):
@@ -505,6 +559,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             self.error06.setText('Deslocamento e velocidade iniciais devem ser números reais')
             self.error06.setWindowTitle('Erro 06')
             self.error06.setWindowIcon(self.error06.style().standardIcon(icon))
+            self.error06.setIcon(QMessageBox.Warning)
             self.error06.show()
 
     def structure_damping_action(self):
@@ -539,6 +594,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             self.error07.setText('A taxa de amortecimento da estrutura deve ser um número real')
             self.error07.setWindowTitle('Erro 07')
             self.error07.setWindowIcon(self.error07.style().standardIcon(icon))
+            self.error07.setIcon(QMessageBox.Warning)
             self.error07.show()
 
     def fluid_parameters_action(self):
@@ -580,6 +636,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             self.error08.setText('Massa específica e viscosidade cinemática devem ser números reais')
             self.error08.setWindowTitle('Erro 08')
             self.error08.setWindowIcon(self.error08.style().standardIcon(icon))
+            self.error08.setIcon(QMessageBox.Warning)
             self.error08.show()
 
     def set_method_mdf(self):
@@ -612,6 +669,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
                                  'de acionar a rotina de cálculo.')
             self.error04.setWindowTitle('Erro 04')
             self.error04.setWindowIcon(self.error04.style().standardIcon(icon))
+            self.error04.setIcon(QMessageBox.Warning)
             self.error04.show()
         else:
             # Confirm tlcd
@@ -630,25 +688,23 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             # Confirm excitation
             self.mainWidget.tabs.excitationTab.add_excitation()
 
-            # Assemble matrices
-            mass = assemble_mass_matrix(inputData.stories, inputData.tlcd)
-            damping = assemble_damping_matrix(inputData.stories, inputData.tlcd)
-            stiffness = assemble_stiffness_matrix(inputData.stories, inputData.tlcd)
-            force = assemble_force_matrix(inputData.excitation, mass, inputData.configurations)
-
             # Calculate response
-            global outputData
-            outputData = OutputData(mass, damping, stiffness, force,
-                                    inputData.configurations)
+            def process(outputSignal):
+                global outputData
+                outputData = outputSignal
 
-            # Generate plot
-            self.mainWidget.tabs.dynRespTab.add_list1_items()
-            self.mainWidget.tabs.dynRespTab.list1.setCurrentRow(self.mainWidget.tabs.dynRespTab.list1.count() - 2)
-            self.mainWidget.tabs.dynRespTab.add_list2_item()
-            self.mainWidget.tabs.dynRespTab.plot_dyn_resp()
+                # Generate plot
+                self.mainWidget.tabs.dynRespTab.add_list1_items()
+                self.mainWidget.tabs.dynRespTab.list1.setCurrentRow(self.mainWidget.tabs.dynRespTab.list1.count() - 2)
+                self.mainWidget.tabs.dynRespTab.add_list2_item()
+                self.mainWidget.tabs.dynRespTab.plot_dyn_resp()
 
-            # Generate report
-            self.mainWidget.tabs.reportTab.generate_report_simulation()
+                # Generate report
+                self.mainWidget.tabs.reportTab.generate_report_simulation()
+
+            self.runSimulationThread = RunSimulationThread(inputData)
+            self.runSimulationThread.mySignal.connect(process)
+            self.runSimulationThread.start()
 
     def run_set_of_simulations_action(self):
         """
@@ -662,9 +718,50 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         self.runSetofSimAct.setShortcut('Ctrl+Alt+R')
         self.runSetofSimAct.setStatusTip('Calcula e plota a o Fator de Amplificação Dinâmica' +
                                          ' em função da Relação de Frequências.')
-        # self.runSetofSimAct.triggered.connect(sys.exit)
-        self.runSetofSimAct.setDisabled(True)
+        self.runSetofSimAct.triggered.connect(self.run_set_of_simulations)
+        # self.runSetofSimAct.setDisabled(True)
         # TODO Implement calculation and ploting code
+
+    def run_set_of_simulations(self):
+        if inputData.stories == {} or inputData.tlcd is None or inputData.excitation is None:
+            icon = QStyle.SP_MessageBoxWarning
+            self.error04 = QMessageBox()
+            self.error04.setText('Preencha e confirme todos os dados nas abas Estrutura, TLCD e Excitação antes '+
+                                 'de acionar a rotina de cálculo.')
+            self.error04.setWindowTitle('Erro 04')
+            self.error04.setWindowIcon(self.error04.style().standardIcon(icon))
+            self.error04.setIcon(QMessageBox.Warning)
+            self.error04.show()
+        else:
+            # Confirm tlcd
+            self.mainWidget.tabs.tlcdTab.add_tlcd()
+
+            # Add the tlcd to the last story
+            lastStory = inputData.stories[len(inputData.stories)]
+            inputData.stories[len(inputData.stories)] = Story(lastStory.mass, lastStory.height, lastStory.width,
+                                                              lastStory.depth, lastStory.E, lastStory.vinculum,
+                                                              inputData.tlcd)
+
+            # Calculate the damping ratio of each story
+            for i in inputData.stories.values():
+                i.calc_damping_ratio(inputData.configurations.relativeDampingRatio)
+
+            # Confirm excitation
+            self.mainWidget.tabs.excitationTab.add_excitation()
+
+            relativeFrequencies = np.arange(0.01, 2.01, 0.01)
+
+            def process(signalMessage):
+                global DMFPlotList
+                dmfList = signalMessage
+                DMFPlotList = [relativeFrequencies, dmfList]
+                self.mainWidget.tabs.dmfTab.dmfCanvas.plot_dmf(relativeFrequencies, dmfList)
+
+            self.runSetOfSimulationsThread = RunSetOfSimulationsThread(inputData, relativeFrequencies)
+            self.runSetOfSimulationsThread.mySignal.connect(process)
+            progressBar = self.mainWidget.tabs.dmfTab.progressBar
+            self.runSetOfSimulationsThread.percentageSignal.connect(progressBar.setValue)
+            self.runSetOfSimulationsThread.start()
 
     def run_optimization_action(self):
         """
@@ -1134,6 +1231,7 @@ class ExcitationTab(QWidget):
                                             'adicionar a estrutura e o TLCD previamente.')
                 self.error01.setWindowTitle('Erro 01')
                 self.error01.setWindowIcon(self.error01.style().standardIcon(icon))
+                self.error01.setIcon(QMessageBox.Warning)
                 self.error01.show()
             elif anlyDuration < exctDuration:
                 icon = QStyle.SP_MessageBoxWarning
@@ -1141,6 +1239,7 @@ class ExcitationTab(QWidget):
                 self.error02.setText('Tempo de análise não pode ser menor do que o tempo de excitação.')
                 self.error02.setWindowTitle('Erro 02')
                 self.error02.setWindowIcon(self.error02.style().standardIcon(icon))
+                self.error02.setIcon(QMessageBox.Warning)
                 self.error02.show()
             else:
                 excitation = Excitation(exct_type, amplitude, frequency, relativeFrequency, exctDuration, anlyDuration,
@@ -1255,11 +1354,7 @@ Aceleração da gravidade: {} (m/s²)""".format(inputData.configurations.method,
 
         self.h1_dynResp = 'Resposta Dinâmica'
 
-        i = len(inputData.stories) - 1
-
-        self.dmf = 'Fator de amplificação dinâmica (DMF): {:.2f}'.format(
-            max(outputData.dynamicResponse.x[i, :].A1) / (
-                outputData.massMatrix[i, i] * inputData.excitation.amplitude / outputData.stiffnessMatrix[i, i]))
+        self.dmf = 'Fator de amplificação dinâmica (DMF): {:.2f}'.format(outputData.DMF)
 
         self.plot = "Vide gráficos na aba Resposta Dinâmica"
 
@@ -1460,17 +1555,45 @@ class DynRespTab(QWidget):
 class DMFTab(QWidget):
     def __init__(self, parent):
         super(DMFTab, self).__init__(parent)
-        self.le1 = QLineEdit(self)
 
-        self.dynRespCanvas = PltCanvas()
+        self.dmfCanvas = PltCanvas()
+        self.mpl_toolbar = NavigationToolbar(self.dmfCanvas, self)
+        self.gridLabel = QLabel('Mostrar Grade', self)
+        self.gridChkBox = QCheckBox(self)
+        self.gridChkBox.stateChanged.connect(self.grid_change)
+
+        self.canvas = QGridLayout()
+        self.canvas.addWidget(self.dmfCanvas, 1, 1, 1, 3)
+        self.canvas.addWidget(self.gridLabel, 2, 1)
+        self.canvas.addWidget(self.gridChkBox, 2, 2)
+        self.canvas.addWidget(self.mpl_toolbar, 2, 3)
+
+        self.holdLabel = QLabel(self)
+        self.holdCheckBox = QCheckBox('Manter curvas do gráfico: ', self)
+        self.holdCheckBox.stateChanged.connect(self.dmfCanvas.axes.hold)
+        self.clearButton = QPushButton('Limpar o gráfico', self)
+        self.clearButton.clicked.connect(self.dmfCanvas.reset_canvas)
+        self.progressBar = QProgressBar(self)
+        self.progressBar.setValue(0)
 
         self.form = QGridLayout()
-        self.form.addWidget(self.le1, 1, 1)
+        self.form.addWidget(self.progressBar, 1, 1)
+        self.form.addWidget(self.holdLabel, 2, 1)
+        self.form.addWidget(self.holdCheckBox, 2, 2)
+        self.form.addWidget(self.clearButton, 3, 1, 1, 2)
 
         self.grid = QGridLayout()
         self.grid.addLayout(self.form, 1, 1)
-        self.grid.addWidget(self.dynRespCanvas, 1, 2)
+        self.grid.addLayout(self.canvas, 1, 2)
         self.setLayout(self.grid)
+
+    def grid_change(self):
+        """ Toggles plot grid on and off
+
+        :return: None
+        """
+        self.dmfCanvas.axes.grid(self.gridChkBox.isChecked())
+        self.dmfCanvas.draw()
 
 
 class AnimationTab(QWidget):

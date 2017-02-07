@@ -110,6 +110,12 @@ class PltCanvas(FigureCanvas):
         self.axes.set_ylabel(r'a (m/$s^2$)')
         self.draw()
 
+    def plot_dmf(self, relativeFrequencies, dmf):
+        self.axes.plot(relativeFrequencies, dmf)
+        self.axes.set_xlabel('Frequência Relativa')
+        self.axes.set_ylabel('DMF')
+        self.draw()
+
     def reset_canvas(self):
         self.axes.hold(False)
         self.axes.plot([], [])

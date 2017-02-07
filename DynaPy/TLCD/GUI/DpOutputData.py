@@ -18,3 +18,11 @@ class OutputData(object):
 
         self.dynamicResponse = ODESolver(self.massMatrix, self.dampingMatrix, self.stiffnessMatrix, self.forceMatrix,
                                          configurations)
+        self.calc_dmf()
+
+    def calc_dmf(self):
+        x_dyn = max(self.dynamicResponse.x[-2, :].A1)
+        F = abs(max(self.forceMatrix[-2, :].A1))
+        K = self.stiffnessMatrix[-2, -2]
+        x_stat = F/K
+        self.DMF = x_dyn/x_stat
