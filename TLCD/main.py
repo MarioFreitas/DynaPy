@@ -33,8 +33,6 @@ outputData = None
 debugOption = False
 np.set_printoptions(linewidth=100, precision=2)
 
-from time import time
-
 
 class RunSimulationThread(QThread):
     mySignal = pyqtSignal(OutputData)
