@@ -198,7 +198,7 @@ class MainWindow(QMainWindow):
         tlcdTab.le1.setText('')
         tlcdTab.le2.setText('')
         tlcdTab.le3.setText('')
-        tlcdTab.le4.setText('')
+        # tlcdTab.le4.setText('')
         tlcdTab.tlcdCanvas.painter(inputData.tlcd)
 
         excitationTab = self.mainWidget.tabs.excitationTab
@@ -1092,13 +1092,13 @@ class TLCDTab(QWidget):
 
         self.combox0 = QComboBox(self)
         self.combox0.addItem('TLCD Simples')
-        self.combox0.addItem('TLCD Pressurizado')
+        # self.combox0.addItem('TLCD Pressurizado')
 
         self.lb0 = QLabel('Model de TLCD', self)
         self.lb1 = QLabel('Diâmetro: (cm)', self)
         self.lb2 = QLabel('Largura: (m)', self)
         self.lb3 = QLabel('Altura da lâmina: (cm)', self)
-        self.lb4 = QLabel('Pressão de ar: (kPa)', self)
+        # self.lb4 = QLabel('Pressão de ar: (kPa)', self)
 
         self.le1 = QLineEdit(self)
         self.le1.setPlaceholderText('30')
@@ -1109,9 +1109,9 @@ class TLCDTab(QWidget):
         self.le3 = QLineEdit(self)
         self.le3.setPlaceholderText('100')
 
-        self.le4 = QLineEdit(self)
-        self.le4.setPlaceholderText('1')
-        self.le4.setDisabled(True)
+        # self.le4 = QLineEdit(self)
+        # self.le4.setPlaceholderText('1')
+        # self.le4.setDisabled(True)
 
         self.btn5 = QPushButton('Confirmar TLCD', self)
         self.btn5.clicked.connect(self.add_tlcd)
@@ -1127,9 +1127,9 @@ class TLCDTab(QWidget):
         self.form.addWidget(self.le2, 3, 2)
         self.form.addWidget(self.lb3, 2, 1)
         self.form.addWidget(self.le3, 2, 2)
-        self.form.addWidget(self.lb4, 4, 1)
-        self.form.addWidget(self.le4, 4, 2)
-        self.form.addWidget(self.btn5, 5, 1, 1, 2)
+        # self.form.addWidget(self.lb4, 4, 1)
+        # self.form.addWidget(self.le4, 4, 2)
+        self.form.addWidget(self.btn5, 4, 1, 1, 2)
 
         self.grid = QGridLayout()
         self.grid.addLayout(self.form, 1, 1)
@@ -1576,9 +1576,9 @@ class DMFTab(QWidget):
 
         self.form = QGridLayout()
         self.form.addWidget(self.progressBar, 1, 1)
-        self.form.addWidget(self.holdLabel, 2, 1)
-        self.form.addWidget(self.holdCheckBox, 2, 2)
-        self.form.addWidget(self.clearButton, 3, 1, 1, 2)
+        self.form.addWidget(self.holdLabel, 1, 2)
+        self.form.addWidget(self.holdCheckBox, 1, 3)
+        self.form.addWidget(self.clearButton, 3, 1, 1, 3)
 
         self.grid = QGridLayout()
         self.grid.addLayout(self.form, 1, 1)
