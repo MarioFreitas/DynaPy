@@ -114,17 +114,25 @@ def assemble_mass_matrix(stories, tlcd):
     :param tlcd: object - Data of the building tlcd.
     :return: np.matrix - Mass matrix of the building equiped with tlcd.
     """
-    n = len(stories)
+    if tlcd is None:
+        n = len(stories)
 
-    M = np.mat(np.zeros((n + 1, n + 1)))
+        M = np.mat(np.zeros((n, n)))
 
-    for i in range(n):
-        M[i, i] = stories[i+1].mass
+        for i in range(n):
+            M[i, i] = stories[i + 1].mass
+    else:
+        n = len(stories)
 
-    M[n-1, n-1] += tlcd.mass
-    M[n, n] = tlcd.mass
-    M[n, n-1] = (tlcd.width/tlcd.length)*tlcd.mass
-    M[n-1, n] = (tlcd.width/tlcd.length)*tlcd.mass
+        M = np.mat(np.zeros((n + 1, n + 1)))
+
+        for i in range(n):
+            M[i, i] = stories[i+1].mass
+
+        M[n-1, n-1] += tlcd.mass
+        M[n, n] = tlcd.mass
+        M[n, n-1] = (tlcd.width/tlcd.length)*tlcd.mass
+        M[n-1, n] = (tlcd.width/tlcd.length)*tlcd.mass
 
     return M
 
@@ -136,14 +144,22 @@ def assemble_damping_matrix(stories, tlcd):
     :param tlcd: object - Data of the building tlcd.
     :return: np.matrix - Damping matrix of the building equiped with tlcd.
     """
-    n = len(stories)
+    if tlcd is None:
+        n = len(stories)
 
-    C = np.mat(np.zeros((n + 1, n + 1)))
+        C = np.mat(np.zeros((n, n)))
 
-    for i in range(n):
-        C[i, i] = stories[i+1].dampingRatio
+        for i in range(n):
+            C[i, i] = stories[i + 1].dampingRatio
+    else:
+        n = len(stories)
 
-    C[n, n] = tlcd.dampingRatio
+        C = np.mat(np.zeros((n + 1, n + 1)))
+
+        for i in range(n):
+            C[i, i] = stories[i+1].dampingRatio
+
+        C[n, n] = tlcd.dampingRatio
 
     return C
 
@@ -155,19 +171,32 @@ def assemble_stiffness_matrix(stories, tlcd):
     :param tlcd: object - Data of the building tlcd.
     :return: np.matrix - Stiffness matrix of the building equiped with tlcd.
     """
-    n = len(stories)
+    if tlcd is None:
+        n = len(stories)
 
-    K = np.mat(np.zeros((n + 1, n + 1)))
+        K = np.mat(np.zeros((n, n)))
 
-    for i in range(n):
-        K[i, i] = stories[i+1].stiffness
+        for i in range(n):
+            K[i, i] = stories[i + 1].stiffness
 
-    for i in range(n, 1, -1):
-        K[i-1, i-2] = -stories[i].stiffness
-        K[i-2, i-1] = -stories[i].stiffness
-        K[i-2, i-2] += stories[i].stiffness
+        for i in range(n, 1, -1):
+            K[i - 1, i - 2] = -stories[i].stiffness
+            K[i - 2, i - 1] = -stories[i].stiffness
+            K[i - 2, i - 2] += stories[i].stiffness
+    else:
+        n = len(stories)
 
-    K[n, n] = tlcd.stiffness
+        K = np.mat(np.zeros((n + 1, n + 1)))
+
+        for i in range(n):
+            K[i, i] = stories[i+1].stiffness
+
+        for i in range(n, 1, -1):
+            K[i-1, i-2] = -stories[i].stiffness
+            K[i-2, i-1] = -stories[i].stiffness
+            K[i-2, i-2] += stories[i].stiffness
+
+        K[n, n] = tlcd.stiffness
 
     return K
 
@@ -181,11 +210,15 @@ def assemble_force_matrix(excitation, mass, configurations):
     :param configurations: object - Object containing time step of iterations.
     :return: np.matrix - Force vector evaluated over time.
     """
+    tlcd = excitation.tlcd
     step = configurations.timeStep
     totalTimeArray = np.mat(np.arange(0, excitation.anlyDuration + step, step))
     excitationTimeArray = np.mat(np.arange(0, excitation.exctDuration + step, step))
     force = 0.*totalTimeArray
-    numberOfStories = mass.shape[0] - 1
+    if tlcd is None:
+        numberOfStories = mass.shape[0]
+    else:
+        numberOfStories = mass.shape[0] - 1
 
     for i in range(numberOfStories-1):
         force = np.concatenate((force, 0.*totalTimeArray), 0)
@@ -198,14 +231,16 @@ def assemble_force_matrix(excitation, mass, configurations):
             for j in range(excitationTimeArray.shape[1]):
                 force[i, j] = forceAmplitude*np.sin(excitation.frequency*totalTimeArray[0, j])
 
-        force = np.concatenate((force, 0.*force[0, :]), 0)
-
-    return force
+        if tlcd is None:
+            return force
+        else:
+            force = np.concatenate((force, 0.*force[0, :]), 0)
+            return force
 
 
 if __name__ == '__main__':
     from math import pi
-    from DpStory import Story
+    from DynaPy.TLCD.GUI.DpStory import Story
     # TODO test same example with assemble functions
     r = 1
 

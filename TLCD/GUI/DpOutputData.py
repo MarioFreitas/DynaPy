@@ -21,8 +21,10 @@ class OutputData(object):
         self.calc_dmf()
 
     def calc_dmf(self):
-        x_dyn = max(self.dynamicResponse.x[-2, :].A1)
-        F = abs(max(self.forceMatrix[-2, :].A1))
-        K = self.stiffnessMatrix[-2, -2]
-        x_stat = F/K
-        self.DMF = x_dyn/x_stat
+        self.DMF = []
+        for i in range(self.massMatrix.shape[0]):
+            x_dyn = max(self.dynamicResponse.x[i, :].A1)
+            F = abs(max(self.forceMatrix[i, :].A1))
+            K = self.stiffnessMatrix[i, i]
+            x_stat = F/K
+            self.DMF.append(x_dyn/x_stat)

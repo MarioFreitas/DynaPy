@@ -66,11 +66,11 @@ class RunSetOfSimulationsThread(QThread):
         totalIter = len(self.relativeFrequencies)
         for i, j in zip(self.relativeFrequencies, range(len(self.relativeFrequencies))):
             dmfList.append(self.simulation(self.inputData, i))
-            percentageDone = (j+1)/totalIter*100
+            percentageDone = (j + 1) / totalIter * 100
             self.percentageSignal.emit(percentageDone)
         self.mySignal.emit(dmfList)
 
-    def simulation(self, inputData_,  relativeFrequency):
+    def simulation(self, inputData_, relativeFrequency):
         inputData_.excitation.frequencyInput = relativeFrequency
         inputData_.excitation.relativeFrequency = True
         inputData_.excitation.calc_frequency()
@@ -88,6 +88,7 @@ class MainWindow(QMainWindow):
     """
     Main window of the application. Contains all global parameters of the GUI application.
     """
+
     def __init__(self, parent=None):
         """
         Initializes the main window and sets up the entire GUI application.
@@ -184,7 +185,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle('Dynapy TLCD Analyser')
 
         # Reset GUI
-        for i in range(structureTab.combox0.count()-1, 0, -1):
+        for i in range(structureTab.combox0.count() - 1, 0, -1):
             structureTab.combox0.removeItem(i)
         structureTab.le1.setText('')
         structureTab.le2.setText('')
@@ -194,11 +195,10 @@ class MainWindow(QMainWindow):
         structureTab.structureCanvas.painter(inputData.stories)
 
         tlcdTab = self.mainWidget.tabs.tlcdTab
-        tlcdTab.combox0.setCurrentIndex(0)
-        tlcdTab.le1.setText('')
-        tlcdTab.le2.setText('')
-        tlcdTab.le3.setText('')
-        # tlcdTab.le4.setText('')
+        tlcdTab.tlcdTypeCbox.setCurrentIndex(0)
+        tlcdTab.simpleTLCD.le1.setText('')
+        tlcdTab.simpleTLCD.le2.setText('')
+        tlcdTab.simpleTLCD.le3.setText('')
         tlcdTab.tlcdCanvas.painter(inputData.tlcd)
 
         excitationTab = self.mainWidget.tabs.excitationTab
@@ -249,7 +249,10 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         if debugOption:
             self.fileName = './save/001.dpfl'
         else:
-            self.fileName = QFileDialog.getOpenFileName(self, 'Salvar como', './save', filter="DynaPy File (*.dpfl)")
+            self.fileName = QFileDialog.getOpenFileName(self, 'Abrir arquivo', './save', filter="DynaPy File (*.dpfl)")
+            if self.fileName == '':
+                self.fileName = None
+                return
         self.setWindowTitle('Dynapy TLCD Analyser - [{}]'.format(self.fileName))
         self.file = open(self.fileName, 'r', encoding='utf-8')
         self.file.readline()
@@ -277,9 +280,10 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
         for i in range(1, storiesNumber + 1):
             inputData.stories.update({i: eval(storiesData[i])})
-            self.mainWidget.tabs.structureTab.combox0.addItem(str(i+1))
+            self.mainWidget.tabs.structureTab.combox0.addItem(str(i + 1))
 
-        inputData.tlcd = TLCD(tlcdData[0], tlcdData[1], tlcdData[2], tlcdData[3])
+        if tlcdData is not None:
+            inputData.tlcd = TLCD(tlcdData[0], tlcdData[1], tlcdData[2], tlcdData[3])
         inputData.excitation = Excitation(excitationData[0], excitationData[1], excitationData[2],
                                           excitationData[3], excitationData[4], excitationData[5],
                                           inputData.stories, inputData.tlcd)
@@ -290,12 +294,15 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         self.mainWidget.tabs.structureTab.set_text_change()
         self.mainWidget.tabs.structureTab.structureCanvas.painter(inputData.stories)
 
-        tlcdTypeIndex = self.mainWidget.tabs.tlcdTab.combox0.findText(str(inputData.tlcd.type))
-        self.mainWidget.tabs.tlcdTab.combox0.setCurrentIndex(tlcdTypeIndex)
-        self.mainWidget.tabs.tlcdTab.le1.setText(str(inputData.tlcd.diameter*100))
-        self.mainWidget.tabs.tlcdTab.le2.setText(str(inputData.tlcd.width))
-        self.mainWidget.tabs.tlcdTab.le3.setText(str(inputData.tlcd.waterHeight*100))
-        self.mainWidget.tabs.tlcdTab.tlcdCanvas.painter(inputData.tlcd)
+        if inputData.tlcd is None:
+            tlcdTypeIndex = self.mainWidget.tabs.tlcdTab.tlcdTypeCbox.findText('Nenhum')
+        elif inputData.tlcd.type == 'TLCD Simples':
+            tlcdTypeIndex = self.mainWidget.tabs.tlcdTab.tlcdTypeCbox.findText(str(inputData.tlcd.type))
+            self.mainWidget.tabs.tlcdTab.tlcdTypeCbox.setCurrentIndex(tlcdTypeIndex)
+            self.mainWidget.tabs.tlcdTab.simpleTLCD.le1.setText(str(inputData.tlcd.diameter * 100))
+            self.mainWidget.tabs.tlcdTab.simpleTLCD.le2.setText(str(inputData.tlcd.width))
+            self.mainWidget.tabs.tlcdTab.simpleTLCD.le3.setText(str(inputData.tlcd.waterHeight * 100))
+            self.mainWidget.tabs.tlcdTab.tlcdCanvas.painter(inputData.tlcd)
 
         exctTypeIndex = self.mainWidget.tabs.excitationTab.combox0.findText(str(inputData.excitation.type))
         self.mainWidget.tabs.excitationTab.combox0.setCurrentIndex(exctTypeIndex)
@@ -304,12 +311,12 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         self.mainWidget.tabs.excitationTab.le3.setText(str(inputData.excitation.exctDuration))
         self.mainWidget.tabs.excitationTab.le4.setText(str(inputData.excitation.anlyDuration))
         self.mainWidget.tabs.excitationTab.chkbox2.setChecked(inputData.excitation.relativeFrequency)
-        tAnly = np.arange(0, inputData.excitation.anlyDuration+inputData.configurations.timeStep,
+        tAnly = np.arange(0, inputData.excitation.anlyDuration + inputData.configurations.timeStep,
                           inputData.configurations.timeStep)
-        tExct = np.arange(0, inputData.excitation.exctDuration+inputData.configurations.timeStep,
+        tExct = np.arange(0, inputData.excitation.exctDuration + inputData.configurations.timeStep,
                           inputData.configurations.timeStep)
-        a = inputData.excitation.amplitude*np.sin(inputData.excitation.frequency*tExct)
-        a = np.hstack((a, np.array([0 for i in range(len(tAnly)-len(tExct))])))
+        a = inputData.excitation.amplitude * np.sin(inputData.excitation.frequency * tExct)
+        a = np.hstack((a, np.array([0 for i in range(len(tAnly) - len(tExct))])))
         self.mainWidget.tabs.excitationTab.excitationCanvas.plot_excitation(tAnly, a)
 
     def save_file_action(self):
@@ -379,10 +386,10 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         """
         if self.fileName is None:
             self.save_file_as()
-        elif inputData.stories == {} or inputData.tlcd is None or inputData.excitation is None:
+        elif inputData.stories == {} or inputData.excitation is None:
             icon = QStyle.SP_MessageBoxWarning
             self.error03 = QMessageBox()
-            self.error03.setText('Preencha e confirme todos os dados nas abas Estrutura, TLCD e Excitação antes '+
+            self.error03.setText('Preencha e confirme todos os dados nas abas Estrutura, TLCD e Excitação antes ' +
                                  'de salvar.')
             self.error03.setWindowTitle('Erro 03')
             self.error03.setWindowIcon(self.error03.style().standardIcon(icon))
@@ -396,12 +403,15 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             stories = {}
             for i, j in inputData.stories.items():
                 stories.update({i: 'Story({}, {}, {}, {}, {}, "{}")'.format(j.mass, j.height, j.width,
-                                                                          j.depth, j.E, j.vinculum)})
+                                                                            j.depth, j.E, j.vinculum)})
             self.file.write('{}\n'.format(stories))
 
             self.file.write('\nTLCD: \n-------------------\n')
             tlcd = inputData.tlcd
-            tlcdData = (tlcd.type, tlcd.diameter, tlcd.width, tlcd.waterHeight)
+            if tlcd is None:
+                tlcdData = None
+            else:
+                tlcdData = (tlcd.type, tlcd.diameter, tlcd.width, tlcd.waterHeight)
             self.file.write('{}\n'.format(tlcdData))
 
             self.file.write('\nExcitation: \n-------------------\n')
@@ -426,6 +436,9 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         :return: None
         """
         self.fileName = QFileDialog.getSaveFileName(self, 'Salvar como', './save', filter="DynaPy File (*.dpfl)")
+        if self.fileName == '':
+            self.fileName = None
+            return
         self.setWindowTitle('Dynapy TLCD Analyser - [{}]'.format(self.fileName))
         self.save_file()
 
@@ -660,10 +673,10 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         # TODO Implement calculation and ploting code
 
     def run_simulation(self):
-        if inputData.stories == {} or inputData.tlcd is None or inputData.excitation is None:
+        if inputData.stories == {} or inputData.excitation is None:
             icon = QStyle.SP_MessageBoxWarning
             self.error04 = QMessageBox()
-            self.error04.setText('Preencha e confirme todos os dados nas abas Estrutura, TLCD e Excitação antes '+
+            self.error04.setText('Preencha e confirme todos os dados nas abas Estrutura, TLCD e Excitação antes ' +
                                  'de acionar a rotina de cálculo.')
             self.error04.setWindowTitle('Erro 04')
             self.error04.setWindowIcon(self.error04.style().standardIcon(icon))
@@ -693,7 +706,10 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
                 # Generate plot
                 self.mainWidget.tabs.dynRespTab.add_list1_items()
-                self.mainWidget.tabs.dynRespTab.list1.setCurrentRow(self.mainWidget.tabs.dynRespTab.list1.count() - 2)
+                if inputData.tlcd is not None:
+                    self.mainWidget.tabs.dynRespTab.list1.setCurrentRow(self.mainWidget.tabs.dynRespTab.list1.count()-2)
+                else:
+                    self.mainWidget.tabs.dynRespTab.list1.setCurrentRow(self.mainWidget.tabs.dynRespTab.list1.count()-1)
                 self.mainWidget.tabs.dynRespTab.add_list2_item()
                 self.mainWidget.tabs.dynRespTab.plot_dyn_resp()
 
@@ -721,10 +737,10 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         # TODO Implement calculation and ploting code
 
     def run_set_of_simulations(self):
-        if inputData.stories == {} or inputData.tlcd is None or inputData.excitation is None:
+        if inputData.stories == {} or inputData.excitation is None:
             icon = QStyle.SP_MessageBoxWarning
             self.error04 = QMessageBox()
-            self.error04.setText('Preencha e confirme todos os dados nas abas Estrutura, TLCD e Excitação antes '+
+            self.error04.setText('Preencha e confirme todos os dados nas abas Estrutura, TLCD e Excitação antes ' +
                                  'de acionar a rotina de cálculo.')
             self.error04.setWindowTitle('Erro 04')
             self.error04.setWindowIcon(self.error04.style().standardIcon(icon))
@@ -1049,9 +1065,9 @@ class StructureTab(QWidget):
 
         if self.combox0.currentIndex() + 1 == self.combox0.count():
             self.combox0.addItem(str(int(get_text(self.combox0)) + 1))
-            self.combox0.setCurrentIndex(self.combox0.currentIndex()+1)
+            self.combox0.setCurrentIndex(self.combox0.currentIndex() + 1)
         else:
-            self.combox0.setCurrentIndex(self.combox0.currentIndex()+1)
+            self.combox0.setCurrentIndex(self.combox0.currentIndex() + 1)
 
     def remove_story(self):
         if self.combox0.currentIndex() + 1 == self.combox0.count() - 1:
@@ -1070,80 +1086,106 @@ class StructureTab(QWidget):
     def set_text_change(self):
         i = int(get_text(self.combox0))
         if i <= len(inputData.stories):
-            self.le1.setText(str(inputData.stories[i].mass/1e3))
+            self.le1.setText(str(inputData.stories[i].mass / 1e3))
             self.le2.setText(str(inputData.stories[i].height))
-            self.le3.setText(str(inputData.stories[i].width*100))
-            self.le4.setText(str(inputData.stories[i].depth*100))
-            self.le5.setText(str(inputData.stories[i].E/1e9))
+            self.le3.setText(str(inputData.stories[i].width * 100))
+            self.le4.setText(str(inputData.stories[i].depth * 100))
+            self.le5.setText(str(inputData.stories[i].E / 1e9))
             self.combox6.setCurrentIndex(self.combox6.findText(str(inputData.stories[i].vinculum)))
 
         else:
-            self.le1.setText(str(inputData.stories[i-1].mass/1e3))
-            self.le2.setText(str(inputData.stories[i-1].height))
-            self.le3.setText(str(inputData.stories[i-1].width*100))
-            self.le4.setText(str(inputData.stories[i-1].depth*100))
-            self.le5.setText(str(inputData.stories[i-1].E/1e9))
-            self.combox6.setCurrentIndex(self.combox6.findText(str(inputData.stories[i-1].vinculum)))
+            self.le1.setText(str(inputData.stories[i - 1].mass / 1e3))
+            self.le2.setText(str(inputData.stories[i - 1].height))
+            self.le3.setText(str(inputData.stories[i - 1].width * 100))
+            self.le4.setText(str(inputData.stories[i - 1].depth * 100))
+            self.le5.setText(str(inputData.stories[i - 1].E / 1e9))
+            self.combox6.setCurrentIndex(self.combox6.findText(str(inputData.stories[i - 1].vinculum)))
 
 
 class TLCDTab(QWidget):
     def __init__(self, parent):
         super(TLCDTab, self).__init__(parent)
 
-        self.combox0 = QComboBox(self)
-        self.combox0.addItem('TLCD Simples')
-        # self.combox0.addItem('TLCD Pressurizado')
+        size = QSizePolicy()
+        size.setHorizontalStretch(1)
 
-        self.lb0 = QLabel('Model de TLCD', self)
-        self.lb1 = QLabel('Diâmetro: (cm)', self)
-        self.lb2 = QLabel('Largura: (m)', self)
-        self.lb3 = QLabel('Altura da lâmina: (cm)', self)
-        # self.lb4 = QLabel('Pressão de ar: (kPa)', self)
+        # General Widgets
+        self.tlcdTypeLbl = QLabel('Model de TLCD', self)
+        self.tlcdTypeCbox = QComboBox(self)
+        self.tlcdTypeCbox.addItem('Nenhum')
+        self.tlcdTypeCbox.addItem('TLCD Simples')
+        self.tlcdTypeCbox.currentIndexChanged.connect(self.change_option)
+        self.confirmButton = QPushButton('Confirmar TLCD', self)
+        self.confirmButton.clicked.connect(self.add_tlcd)
 
-        self.le1 = QLineEdit(self)
-        self.le1.setPlaceholderText('30')
+        # No TLCD
+        self.noTLCD = QWidget()
+        self.noTLCD.lbl = QLabel('Não é necessário entrar com nenhum dado.')
+        self.noTLCD.grid = QGridLayout()
+        self.noTLCD.setLayout(self.noTLCD.grid)
+        self.noTLCD.grid.addWidget(self.noTLCD.lbl, 1, 1)
 
-        self.le2 = QLineEdit(self)
-        self.le2.setPlaceholderText('10')
+        # Simple TLCD
+        self.simpleTLCD = QWidget()
 
-        self.le3 = QLineEdit(self)
-        self.le3.setPlaceholderText('100')
+        self.simpleTLCD.lb1 = QLabel('Diâmetro: (cm)', self)
+        self.simpleTLCD.lb2 = QLabel('Largura: (m)', self)
+        self.simpleTLCD.lb3 = QLabel('Altura da lâmina: (cm)', self)
 
-        # self.le4 = QLineEdit(self)
-        # self.le4.setPlaceholderText('1')
-        # self.le4.setDisabled(True)
+        self.simpleTLCD.le1 = QLineEdit(self)
+        self.simpleTLCD.le1.setPlaceholderText('30')
 
-        self.btn5 = QPushButton('Confirmar TLCD', self)
-        self.btn5.clicked.connect(self.add_tlcd)
+        self.simpleTLCD.le2 = QLineEdit(self)
+        self.simpleTLCD.le2.setPlaceholderText('10')
+
+        self.simpleTLCD.le3 = QLineEdit(self)
+        self.simpleTLCD.le3.setPlaceholderText('100')
+
+        self.simpleTLCD.grid = QGridLayout()
+        self.simpleTLCD.setLayout(self.simpleTLCD.grid)
+        self.simpleTLCD.grid.addWidget(self.simpleTLCD.lb1, 1, 1)
+        self.simpleTLCD.grid.addWidget(self.simpleTLCD.le1, 1, 2)
+        self.simpleTLCD.grid.addWidget(self.simpleTLCD.lb2, 3, 1)
+        self.simpleTLCD.grid.addWidget(self.simpleTLCD.le2, 3, 2)
+        self.simpleTLCD.grid.addWidget(self.simpleTLCD.lb3, 2, 1)
+        self.simpleTLCD.grid.addWidget(self.simpleTLCD.le3, 2, 2)
+
+        # Stacked Widget
+        self.stackedWidget = QStackedWidget(self)
+        # self.stackedWidget.setSizePolicy(size)
+        self.stackedWidget.addWidget(self.noTLCD)
+        self.stackedWidget.addWidget(self.simpleTLCD)
+        self.stackedWidget.setCurrentWidget(self.noTLCD)
 
         self.tlcdCanvas = TLCDCanvas(self)
+        # self.tlcdCanvas.setSizePolicy(size)
 
         self.form = QGridLayout()
-        self.form.addWidget(self.lb0, 0, 1)
-        self.form.addWidget(self.combox0, 0, 2)
-        self.form.addWidget(self.lb1, 1, 1)
-        self.form.addWidget(self.le1, 1, 2)
-        self.form.addWidget(self.lb2, 3, 1)
-        self.form.addWidget(self.le2, 3, 2)
-        self.form.addWidget(self.lb3, 2, 1)
-        self.form.addWidget(self.le3, 2, 2)
-        # self.form.addWidget(self.lb4, 4, 1)
-        # self.form.addWidget(self.le4, 4, 2)
-        self.form.addWidget(self.btn5, 4, 1, 1, 2)
+        self.form.addWidget(self.tlcdTypeLbl, 1, 1)
+        self.form.addWidget(self.tlcdTypeCbox, 1, 2)
+        self.form.addWidget(self.stackedWidget, 2, 1, 1, 2)
+        self.form.addWidget(self.confirmButton, 3, 1, 1, 2)
 
         self.grid = QGridLayout()
         self.grid.addLayout(self.form, 1, 1)
         self.grid.addWidget(self.tlcdCanvas, 1, 2)
         self.setLayout(self.grid)
 
+    def change_option(self):
+        tlcdType = get_text(self.tlcdTypeCbox)
+        if tlcdType == 'Nenhum':
+            self.stackedWidget.setCurrentWidget(self.noTLCD)
+        elif tlcdType == 'TLCD Simples':
+            self.stackedWidget.setCurrentWidget(self.simpleTLCD)
+
     def add_tlcd(self):
         inputData.tlcd = None
-        tlcdType = get_text(self.combox0)
+        tlcdType = get_text(self.tlcdTypeCbox)
 
         if tlcdType == 'TLCD Simples':
-            diameter = float(get_text(self.le1))/100  # float (cm -> m)
-            width = float(get_text(self.le2))   # float (m)
-            waterHeight = float(get_text(self.le3))/100     # float (cm -> m)
+            diameter = float(get_text(self.simpleTLCD.le1)) / 100  # float (cm -> m)
+            width = float(get_text(self.simpleTLCD.le2))  # float (m)
+            waterHeight = float(get_text(self.simpleTLCD.le3)) / 100  # float (cm -> m)
             tlcd = TLCD(tlcdType, diameter, width, waterHeight, configurations=inputData.configurations)
             inputData.tlcd = tlcd
             self.tlcdCanvas.painter(tlcd)
@@ -1222,11 +1264,11 @@ class ExcitationTab(QWidget):
             exctDuration = float(get_text(self.le3))
             anlyDuration = float(get_text(self.le4))
 
-            if relativeFrequency and (inputData.stories == {} or inputData.tlcd is None):
+            if relativeFrequency and inputData.stories == {}:
                 icon = QStyle.SP_MessageBoxWarning
                 self.error01 = QMessageBox()
                 self.error01.setText('Para utilizar a opção de frequência relativa é necessário ' +
-                                            'adicionar a estrutura e o TLCD previamente.')
+                                     'adicionar a estrutura e o TLCD previamente.')
                 self.error01.setWindowTitle('Erro 01')
                 self.error01.setWindowIcon(self.error01.style().standardIcon(icon))
                 self.error01.setIcon(QMessageBox.Warning)
@@ -1244,10 +1286,12 @@ class ExcitationTab(QWidget):
                                         structure=inputData.stories, tlcd=inputData.tlcd)
                 inputData.excitation = excitation
 
-                tAnly = np.arange(0, anlyDuration+inputData.configurations.timeStep, inputData.configurations.timeStep)
-                tExct = np.arange(0, exctDuration+inputData.configurations.timeStep, inputData.configurations.timeStep)
-                a = amplitude*np.sin(excitation.frequency*tExct)
-                a = np.hstack((a, np.array([0 for i in range(len(tAnly)-len(tExct))])))
+                tAnly = np.arange(0, anlyDuration + inputData.configurations.timeStep,
+                                  inputData.configurations.timeStep)
+                tExct = np.arange(0, exctDuration + inputData.configurations.timeStep,
+                                  inputData.configurations.timeStep)
+                a = amplitude * np.sin(excitation.frequency * tExct)
+                a = np.hstack((a, np.array([0 for i in range(len(tAnly) - len(tExct))])))
 
                 self.excitationCanvas.plot_excitation(tAnly, a)
 
@@ -1278,11 +1322,11 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
         for i in range(1, len(inputData.stories) + 1):
             self.storiesTable.append([i,
-                                      inputData.stories[i].mass/1000,
+                                      inputData.stories[i].mass / 1000,
                                       inputData.stories[i].height,
-                                      inputData.stories[i].width*100,
-                                      inputData.stories[i].depth*100,
-                                      inputData.stories[i].E/1e9,
+                                      inputData.stories[i].width * 100,
+                                      inputData.stories[i].depth * 100,
+                                      inputData.stories[i].E / 1e9,
                                       inputData.stories[i].vinculum])
 
         self.storiesData = ''
@@ -1299,12 +1343,14 @@ Módulo de elasticidade dos pilares: {} GPa
 
         self.h2_TLCD = 'TLCD'
 
-        if inputData.tlcd.type == 'TLCD Simples':
+        if inputData.tlcd is None:
+            self.tlcdData = """Tipo: Nenhum"""
+        elif inputData.tlcd.type == 'TLCD Simples':
             self.tlcdData = """Tipo: {}
 Diâmetro: {} cm
 Altura da lamina d'água: {} cm
-Largura: {} m""".format(inputData.tlcd.type, inputData.tlcd.diameter*100,
-                        inputData.tlcd.waterHeight*100, inputData.tlcd.width)
+Largura: {} m""".format(inputData.tlcd.type, inputData.tlcd.diameter * 100,
+                        inputData.tlcd.waterHeight * 100, inputData.tlcd.width)
 
         self.h2_exct = 'Excitação'
 
@@ -1352,7 +1398,7 @@ Aceleração da gravidade: {} (m/s²)""".format(inputData.configurations.method,
 
         self.h1_dynResp = 'Resposta Dinâmica'
 
-        self.dmf = 'Fator de amplificação dinâmica (DMF): {:.2f}'.format(outputData.DMF)
+        self.dmf = 'Fator de amplificação dinâmica (DMF): {}'.format(outputData.DMF)
 
         self.plot = "Vide gráficos na aba Resposta Dinâmica"
 
@@ -1496,7 +1542,8 @@ class DynRespTab(QWidget):
         for i in inputData.stories.keys():
             self.list1.addItem('Pavimento {}'.format(i))
 
-        self.list1.addItem('TLCD')
+        if inputData.tlcd is not None:
+            self.list1.addItem('TLCD')
 
     def add_list2_item(self):
         """ Adds the item selected on list 1 to list 2 without making duplicates. If successfull, advances one row on

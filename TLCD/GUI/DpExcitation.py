@@ -35,6 +35,10 @@ class Excitation(object):
 
     def calc_frequency(self):
         if self.relativeFrequency:
-            mass = self.structure[len(self.structure)].mass + self.tlcd.mass
+            if self.tlcd is None:
+                mass = self.structure[len(self.structure)].mass
+            else:
+                mass = self.structure[len(self.structure)].mass + self.tlcd.mass
+
             stiffness = self.structure[len(self.structure)].stiffness
             self.frequency = self.frequencyInput * sqrt(stiffness / mass)
