@@ -146,11 +146,6 @@ class MainWindow(QMainWindow):
         # Show GUI
         self.showMaximized()
 
-        # DEBUG OPTION - LOAD IMMEDIATELY
-        if debugOption:
-            self.open_file()
-            self.run_simulation()
-
     def new_file_action(self):
         """
         Action for creating a new file. Resets the entire application.
@@ -237,22 +232,20 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         self.openFileAct.setShortcut('Ctrl+O')
         self.openFileAct.triggered.connect(self.open_file)
 
-    def open_file(self):
+    def open_file(self, triggered=False, fileName=None):
         """ Calls self.new_file to reset everything. Then, brings a open file dialog box and save the directory to
         self.fileName. Reads the file send all data to inputData. Finally, set texts and plot figures to GUI.
 
         :return: None
         """
-        self.new_file()
-
-        # DEBUG OPTION - IMMEDIATELY OPEN
-        if debugOption:
-            self.fileName = './save/001.dpfl'
+        if fileName is not None:
+            self.fileName = fileName
         else:
-            self.fileName = QFileDialog.getOpenFileName(self, 'Abrir arquivo', './save', filter="DynaPy File (*.dpfl)")
-            if self.fileName == '':
-                self.fileName = None
-                return
+            fileName = QFileDialog.getOpenFileName(self, 'Abrir arquivo', './save', filter="DynaPy File (*.dpfl)")
+            if fileName == '':
+                return None
+            self.new_file()
+            self.fileName = fileName
         self.setWindowTitle('Dynapy TLCD Analyser - [{}]'.format(self.fileName))
         self.file = open(self.fileName, 'r', encoding='utf-8')
         self.file.readline()
@@ -670,7 +663,6 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         self.runSimAct.setShortcut('Ctrl+R')
         self.runSimAct.setStatusTip('Calcula e plota a resposta dinâmica da estrutura.')
         self.runSimAct.triggered.connect(self.run_simulation)
-        # TODO Implement calculation and ploting code
 
     def run_simulation(self):
         if inputData.stories == {} or inputData.excitation is None:
@@ -734,7 +726,6 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
                                          ' em função da Relação de Frequências.')
         self.runSetofSimAct.triggered.connect(self.run_set_of_simulations)
         # self.runSetofSimAct.setDisabled(True)
-        # TODO Implement calculation and ploting code
 
     def run_set_of_simulations(self):
         if inputData.stories == {} or inputData.excitation is None:
@@ -882,6 +873,9 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         self.devDialog.layout.addWidget(self.devDialog.textEdit, 1, 1)
         self.devDialog.layout.addWidget(self.devDialog.btn, 2, 1)
         self.devDialog.setLayout(self.devDialog.layout)
+
+        s = 'compare_anal_sol(1)'
+        self.devDialog.textEdit.setText(s)
 
         self.devDialog.show()
 
@@ -1660,7 +1654,91 @@ class AnimationTab(QWidget):
 def main():
     app = QApplication(sys.argv)
     GUI = MainWindow()
+    if debugOption:
+        # DEBUG OPTION - LOAD IMMEDIATELY
+        # fileName = './save/Verificações/Caso 1 (1 andar sem amort).dpfl'
+        fileName = './save/Verificações/Caso 2 (Tedesco 12.7).dpfl'
+        GUI.open_file(fileName=fileName)
+        GUI.run_simulation()
     sys.exit(app.exec_())
+
+
+def compare_anal_sol(case):
+    if case == 1:
+        """
+        1 andar, vibração forçada ou livre, com ou sem amortecimento da estrutura e sem tlcd.
+        qualquer frequência, qualquer CC
+        """
+        # TODO check initial velocity condition
+        m = inputData.stories[1].mass
+        # c = 0
+        k = 24*(25e9)*(0.35*0.35**3/12)/(3**3)      #24EI/L^3 (engastado-engastado)
+        # print(m, c, k)
+        omega_n = np.sqrt(k/m)
+        ksi = inputData.configurations.relativeDampingRatio               # c/(2*m*omega_n)
+        omega_d = omega_n * np.sqrt(1 - ksi ** 2)
+
+        amplitude = inputData.excitation.amplitude
+        p0 = amplitude*m
+        frequencyInput = inputData.excitation.frequencyInput
+        omega = frequencyInput*omega_n  # ressonância
+
+        C = (p0/k)*((1-(omega/omega_n)**2)/((1-(omega/omega_n)**2)**2 + (2*ksi*(omega/omega_n))**2))
+        D = (p0/k)*((-2*ksi*(omega / omega_n))/((1-(omega/omega_n)**2)**2 + (2*ksi*(omega / omega_n))**2))
+
+        x0 = inputData.configurations.initialDisplacement
+        x10 = inputData.configurations.initialVelocity
+        # print(x0, x10)
+        A = x0 - D                                      # x(0) = 0
+        B = (x10 + ksi*omega_n*A - omega*C)/omega_d       # x'(0) = 0
+
+        t = np.linspace(0, 3, 2000)
+        x = np.exp(-ksi*omega_n*t)*(A*np.cos(omega_d*t) + B*np.sin(omega_d*t)) + C*np.sin(omega*t) + D*np.cos(omega*t)
+        dmf = (max(list(x)))/(p0/k)
+        # print(dmf)
+
+        t_num = outputData.dynamicResponse.t
+        x_num = outputData.dynamicResponse.x[0, :].A1
+        plt.plot(t, x, '-r', label='Solução Analítica')
+        plt.plot(t_num, x_num, '-b', label='Solução Numérica')
+        plt.legend()
+        plt.title('Deslocamento em Função do Tempo')
+        plt.xlabel('t (s)')
+        plt.ylabel('x (m)')
+        plt.show()
+
+    elif case == 2:
+        m = inputData.stories[3].mass
+        k = inputData.stories[3].E
+        omega_n = np.sqrt(k / m)
+
+        outputData.forceMatrix[0, :] *= 0
+        outputData.forceMatrix[1, :] *= 0
+
+        outputData.dynamicResponse = ODESolver(outputData.massMatrix, outputData.dampingMatrix,
+                                               outputData.stiffnessMatrix, outputData.forceMatrix,
+                                               inputData.configurations)
+
+        amplitude = inputData.excitation.amplitude
+        p0 = amplitude * m
+        frequencyInput = inputData.excitation.frequencyInput
+        omega = frequencyInput * omega_n  # ressonância
+
+        t = np.linspace(0, 3, 2000)
+        x = 0.0533*p0*np.sin(omega*t) + \
+             (((omega**2)/169.52)*(1.183**2)*p0*np.sin(omega*t))/(28.79*(1-(omega**2)/169.52)) + \
+             (((omega ** 2) / 3064.73) * (0.94 ** 2) * p0 * np.sin(omega * t)) / (292.069 * (1 - (omega ** 2) / 3064.73)) + \
+             (((omega ** 2) / 10290.07) * (3.897 ** 2) * p0 * np.sin(omega * t)) / (14187.953 * (1 - (omega ** 2) / 10290.07))
+
+        t_num = outputData.dynamicResponse.t
+        x_num = outputData.dynamicResponse.x[2, :].A1
+        plt.plot(t, x, '-r', label='Solução Analítica')
+        plt.plot(t_num, x_num, '-b', label='Solução Numérica')
+        plt.legend()
+        plt.title('Deslocamento em Função do Tempo')
+        plt.xlabel('t (s)')
+        plt.ylabel('x (m)')
+        plt.show()
 
 
 if __name__ == '__main__':
