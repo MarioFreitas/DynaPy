@@ -4,7 +4,7 @@ from numpy import sqrt
 class Excitation(object):
     def __init__(self, exctType='Seno', amplitude=5., frequency=20.,
                  relativeFrequency=True, exctDuration=3., anlyDuration=5.,
-                 structure=None, tlcd=None, **kwargs):
+                 structure=None, tlcd=None, t=None, a=None, fileName=None, **kwargs):
         """
         :param exctType: str - Type of excitation to be used by DynaSolver.assemble_force_matrix()
         :param amplitude: float - Amplitude of the the wave, mesured by the acceleration (m/s**2)
@@ -18,20 +18,27 @@ class Excitation(object):
         :return: None
         """
         self.type = exctType
-        self.amplitude = amplitude
-        self.frequency = frequency
-        self.frequencyInput = frequency
-        self.exctDuration = exctDuration
-        self.anlyDuration = anlyDuration
-        self.relativeFrequency = relativeFrequency
-
         self.structure = structure
         self.tlcd = tlcd
+        if self.type == 'Seno':
+            self.amplitude = amplitude
+            self.frequency = frequency
+            self.frequencyInput = frequency
+            self.exctDuration = exctDuration
+            self.anlyDuration = anlyDuration
+            self.relativeFrequency = relativeFrequency
+
+            self.calc_frequency()
+
+        elif self.type == 'Genérico':
+            self.t_input = t
+            self.a_input = a
+            self.exctDuration = t[-1]
+            self.anlyDuration = t[-1]
+            self.fileName = fileName
 
         for (i, j) in kwargs.items():
             exec('self.{} = {}'.format(i, j))
-
-        self.calc_frequency()
 
     def calc_frequency(self):
         if self.relativeFrequency:

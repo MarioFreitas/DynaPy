@@ -1,0 +1,16 @@
+Structure: 
+-------------------
+4
+{1: 'Story(1.5, 1.0, 0.5, 1.0, 900.0, "Engastado-Engastado")', 2: 'Story(1.0, 1.0, 0.5, 1.0, 600.0, "Engastado-Engastado")', 3: 'Story(0.5, 1.0, 0.5, 1.0, 300.0, "Engastado-Engastado")', 4: 'Story(0.5, 1.0, 0.5, 1.0, 300.0, "Engastado-Engastado")'}
+
+TLCD: 
+-------------------
+None
+
+Excitation: 
+-------------------
+('Genérico', [0.0, 0.75, 1.5, 1.502, 3.0], [4.41315, 2.45175, 2.45175, 0.0, 0.0], 'C:/Python34/Lib/site-packages/DynaPy/TLCD/save/Carregamentos/Tedesco 12.5.txt')
+
+Configurations: 
+-------------------
+('Método das Diferenças Finitas', 0.001, 0.0, 0.0, 0.02, 998.2071, 1.003e-06, 9.807)

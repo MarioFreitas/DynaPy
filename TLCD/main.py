@@ -197,12 +197,12 @@ class MainWindow(QMainWindow):
         tlcdTab.tlcdCanvas.painter(inputData.tlcd)
 
         excitationTab = self.mainWidget.tabs.excitationTab
-        excitationTab.combox0.setCurrentIndex(0)
-        excitationTab.le1.setText('')
-        excitationTab.le2.setText('')
-        excitationTab.le3.setText('')
-        excitationTab.le4.setText('')
-        excitationTab.chkbox2.setChecked(True)
+        excitationTab.type_excit_cbox.setCurrentIndex(0)
+        excitationTab.sineExcitation.amplitude_sine_le.setText('')
+        excitationTab.sineExcitation.frequency_sine_le.setText('')
+        excitationTab.sineExcitation.duration_exc_le.setText('')
+        excitationTab.sineExcitation.duation_anl_sine_le.setText('')
+        excitationTab.sineExcitation.frequency_sine_cbox.setChecked(True)
         excitationTab.excitationCanvas.plot_excitation([], [])
 
         reportTab = self.mainWidget.tabs.reportTab
@@ -277,9 +277,14 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
         if tlcdData is not None:
             inputData.tlcd = TLCD(tlcdData[0], tlcdData[1], tlcdData[2], tlcdData[3])
-        inputData.excitation = Excitation(excitationData[0], excitationData[1], excitationData[2],
-                                          excitationData[3], excitationData[4], excitationData[5],
-                                          inputData.stories, inputData.tlcd)
+        if excitationData[0] == 'Seno':
+            inputData.excitation = Excitation(excitationData[0], excitationData[1], excitationData[2],
+                                              excitationData[3], excitationData[4], excitationData[5],
+                                              inputData.stories, inputData.tlcd)
+        elif excitationData[0] == 'Genérico':
+            inputData.excitation = Excitation(excitationData[0], t=excitationData[1], a=excitationData[2],
+                                              fileName=excitationData[3],
+                                              structure=inputData.stories, tlcd=inputData.tlcd)
         inputData.configurations = Configurations(configurationsData[0], configurationsData[1], configurationsData[2],
                                                   configurationsData[3], configurationsData[4], configurationsData[5],
                                                   configurationsData[6])
@@ -297,20 +302,30 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             self.mainWidget.tabs.tlcdTab.simpleTLCD.le3.setText(str(inputData.tlcd.waterHeight * 100))
             self.mainWidget.tabs.tlcdTab.tlcdCanvas.painter(inputData.tlcd)
 
-        exctTypeIndex = self.mainWidget.tabs.excitationTab.combox0.findText(str(inputData.excitation.type))
-        self.mainWidget.tabs.excitationTab.combox0.setCurrentIndex(exctTypeIndex)
-        self.mainWidget.tabs.excitationTab.le1.setText(str(inputData.excitation.amplitude))
-        self.mainWidget.tabs.excitationTab.le2.setText(str(inputData.excitation.frequencyInput))
-        self.mainWidget.tabs.excitationTab.le3.setText(str(inputData.excitation.exctDuration))
-        self.mainWidget.tabs.excitationTab.le4.setText(str(inputData.excitation.anlyDuration))
-        self.mainWidget.tabs.excitationTab.chkbox2.setChecked(inputData.excitation.relativeFrequency)
-        tAnly = np.arange(0, inputData.excitation.anlyDuration + inputData.configurations.timeStep,
-                          inputData.configurations.timeStep)
-        tExct = np.arange(0, inputData.excitation.exctDuration + inputData.configurations.timeStep,
-                          inputData.configurations.timeStep)
-        a = inputData.excitation.amplitude * np.sin(inputData.excitation.frequency * tExct)
-        a = np.hstack((a, np.array([0 for i in range(len(tAnly) - len(tExct))])))
-        self.mainWidget.tabs.excitationTab.excitationCanvas.plot_excitation(tAnly, a)
+        exctTypeIndex = self.mainWidget.tabs.excitationTab.type_excit_cbox.findText(str(inputData.excitation.type))
+        self.mainWidget.tabs.excitationTab.type_excit_cbox.setCurrentIndex(exctTypeIndex)
+        if inputData.excitation.type == 'Seno':
+            self.mainWidget.tabs.excitationTab.sineExcitation.amplitude_sine_le.setText(
+                str(inputData.excitation.amplitude))
+            self.mainWidget.tabs.excitationTab.sineExcitation.frequency_sine_le.setText(
+                str(inputData.excitation.frequencyInput))
+            self.mainWidget.tabs.excitationTab.sineExcitation.duration_exc_le.setText(
+                str(inputData.excitation.exctDuration))
+            self.mainWidget.tabs.excitationTab.sineExcitation.duation_anl_sine_le.setText(
+                str(inputData.excitation.anlyDuration))
+            self.mainWidget.tabs.excitationTab.sineExcitation.frequency_sine_cbox.setChecked(
+                inputData.excitation.relativeFrequency)
+            tAnly = np.arange(0, inputData.excitation.anlyDuration + inputData.configurations.timeStep,
+                              inputData.configurations.timeStep)
+            tExct = np.arange(0, inputData.excitation.exctDuration + inputData.configurations.timeStep,
+                              inputData.configurations.timeStep)
+            a = inputData.excitation.amplitude * np.sin(inputData.excitation.frequency * tExct)
+            a = np.hstack((a, np.array([0 for i in range(len(tAnly) - len(tExct))])))
+            self.mainWidget.tabs.excitationTab.excitationCanvas.plot_excitation(tAnly, a)
+        elif inputData.excitation.type == 'Genérico':
+            self.mainWidget.tabs.excitationTab.generalExcitation.loadLineEdit.setText(inputData.excitation.fileName)
+            self.mainWidget.tabs.excitationTab.excitationCanvas.plot_excitation(inputData.excitation.t_input,
+                                                                                inputData.excitation.a_input)
 
     def save_file_action(self):
         """
@@ -409,8 +424,11 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
             self.file.write('\nExcitation: \n-------------------\n')
             excitation = inputData.excitation
-            excitationData = (excitation.type, excitation.amplitude, excitation.frequencyInput,
-                              excitation.relativeFrequency, excitation.exctDuration, excitation.anlyDuration)
+            if excitation.type == 'Seno':
+                excitationData = (excitation.type, excitation.amplitude, excitation.frequencyInput,
+                                  excitation.relativeFrequency, excitation.exctDuration, excitation.anlyDuration)
+            elif excitation.type == 'Genérico':
+                excitationData = (excitation.type, excitation.t_input, excitation.a_input, excitation.fileName)
             self.file.write('{}\n'.format(excitationData))
 
             self.file.write('\nConfigurations: \n-------------------\n')
@@ -699,9 +717,11 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
                 # Generate plot
                 self.mainWidget.tabs.dynRespTab.add_list1_items()
                 if inputData.tlcd is not None:
-                    self.mainWidget.tabs.dynRespTab.list1.setCurrentRow(self.mainWidget.tabs.dynRespTab.list1.count()-2)
+                    self.mainWidget.tabs.dynRespTab.list1.setCurrentRow(
+                        self.mainWidget.tabs.dynRespTab.list1.count() - 2)
                 else:
-                    self.mainWidget.tabs.dynRespTab.list1.setCurrentRow(self.mainWidget.tabs.dynRespTab.list1.count()-1)
+                    self.mainWidget.tabs.dynRespTab.list1.setCurrentRow(
+                        self.mainWidget.tabs.dynRespTab.list1.count() - 1)
                 self.mainWidget.tabs.dynRespTab.add_list2_item()
                 self.mainWidget.tabs.dynRespTab.plot_dyn_resp()
 
@@ -1191,72 +1211,111 @@ class ExcitationTab(QWidget):
     def __init__(self, parent):
         super(ExcitationTab, self).__init__(parent)
 
-        self.lb0 = QLabel('Tipo de Excitação', self)
-        self.lb1 = QLabel('Amplitude: (m/s²)', self)
-        self.lb2 = QLabel('Frequência: (rad/s)', self)
-        self.lb3 = QLabel('Duração da Excitação: (s)', self)
-        self.lb4 = QLabel('Tempo de Análise: (s)', self)
+        # General Widgets
+        self.type_excit_lbl = QLabel('Tipo de Excitação', self)
+        self.type_excit_cbox = QComboBox(self)
+        self.type_excit_cbox.addItem('Seno')
+        self.type_excit_cbox.addItem('Genérico')
+        self.type_excit_cbox.currentIndexChanged.connect(self.type_change)
+        self.excit_button = QPushButton('Confirmar Excitação', self)
+        self.excit_button.clicked.connect(self.add_excitation)
 
-        self.combox0 = QComboBox(self)
-        self.combox0.addItem('Seno')
+        # Sine Excitation
+        self.sineExcitation = QWidget()
+        self.sineExcitation.grid = QGridLayout()
+        self.sineExcitation.setLayout(self.sineExcitation.grid)
 
-        self.le1 = QLineEdit(self)
-        self.le1.setPlaceholderText('5')
+        self.sineExcitation.amplitude_sine_lbl = QLabel('Amplitude: (m/s²)', self)
+        self.sineExcitation.frequency_sine_lbl = QLabel('Frequência: (rad/s)', self)
+        self.sineExcitation.duration_exc_sine_lbl = QLabel('Duração da Excitação: (s)', self)
+        self.sineExcitation.duration_anl_sine_lbl = QLabel('Tempo de Análise: (s)', self)
+        self.sineExcitation.amplitude_sine_le = QLineEdit(self)
+        self.sineExcitation.amplitude_sine_le.setPlaceholderText('5')
+        self.sineExcitation.frequency_sine_le = QLineEdit(self)
+        self.sineExcitation.frequency_sine_le.setPlaceholderText('30')
+        self.sineExcitation.frequency_sine_cbox = QCheckBox('Usar relação de frequências', self)
+        self.sineExcitation.frequency_sine_cbox.stateChanged.connect(self.lb2_change)
+        self.sineExcitation.frequency_sine_cbox.setChecked(True)
+        self.sineExcitation.duration_exc_le = QLineEdit(self)
+        self.sineExcitation.duration_exc_le.setPlaceholderText('3')
+        self.sineExcitation.duation_anl_sine_le = QLineEdit(self)
+        self.sineExcitation.duation_anl_sine_le.setPlaceholderText('5')
 
-        self.le2 = QLineEdit(self)
-        self.le2.setPlaceholderText('30')
+        self.sineExcitation.grid.addWidget(self.sineExcitation.amplitude_sine_lbl, 1, 1)
+        self.sineExcitation.grid.addWidget(self.sineExcitation.frequency_sine_lbl, 2, 1)
+        self.sineExcitation.grid.addWidget(self.sineExcitation.duration_exc_sine_lbl, 3, 1)
+        self.sineExcitation.grid.addWidget(self.sineExcitation.duration_anl_sine_lbl, 4, 1)
+        self.sineExcitation.grid.addWidget(self.sineExcitation.amplitude_sine_le, 1, 2)
+        self.sineExcitation.grid.addWidget(self.sineExcitation.frequency_sine_le, 2, 2)
+        self.sineExcitation.grid.addWidget(self.sineExcitation.duration_exc_le, 3, 2)
+        self.sineExcitation.grid.addWidget(self.sineExcitation.duation_anl_sine_le, 4, 2)
+        self.sineExcitation.grid.addWidget(self.sineExcitation.frequency_sine_cbox, 2, 3)
 
-        self.chkbox2 = QCheckBox('Usar relação de frequências', self)
-        self.chkbox2.stateChanged.connect(self.lb2_change)
-        self.chkbox2.setChecked(True)
+        # General Excitation
+        self.generalExcitation = QWidget()
+        self.generalExcitation.grid = QGridLayout()
+        self.generalExcitation.setLayout(self.generalExcitation.grid)
 
-        self.le3 = QLineEdit(self)
-        self.le3.setPlaceholderText('3')
+        self.generalExcitation.loadLabel = QLabel('Arquivo: ', self)
+        self.generalExcitation.loadLineEdit = QLineEdit(self)
+        self.generalExcitation.loadButton = QPushButton('Importar carregamento', self)
+        self.generalExcitation.loadButton.clicked.connect(self.import_loading)
+        self.generalExcitation.generateButton = QPushButton('Gerar carregamento', self)
 
-        self.le4 = QLineEdit(self)
-        self.le4.setPlaceholderText('5')
+        self.generalExcitation.grid.addWidget(self.generalExcitation.loadLabel, 1, 1)
+        self.generalExcitation.grid.addWidget(self.generalExcitation.loadLineEdit, 1, 2)
+        self.generalExcitation.grid.addWidget(self.generalExcitation.loadButton, 2, 1)
+        self.generalExcitation.grid.addWidget(self.generalExcitation.generateButton, 2, 2)
 
-        self.btn5 = QPushButton('Confirmar Excitação', self)
-        self.btn5.clicked.connect(self.add_excitation)
+        # Stacked Widget
+        self.stackedWidget = QStackedWidget()
+        self.stackedWidget.addWidget(self.sineExcitation)
+        self.stackedWidget.addWidget(self.generalExcitation)
+        self.stackedWidget.setCurrentWidget(self.sineExcitation)
 
+        # Plot Canvas
         self.excitationCanvas = PltCanvas()
 
         self.form = QGridLayout()
-        self.form.addWidget(self.lb0, 0, 1)
-        self.form.addWidget(self.lb1, 1, 1)
-        self.form.addWidget(self.lb2, 2, 1)
-        self.form.addWidget(self.lb3, 3, 1)
-        self.form.addWidget(self.lb4, 4, 1)
-        self.form.addWidget(self.combox0, 0, 2)
-        self.form.addWidget(self.le1, 1, 2)
-        self.form.addWidget(self.le2, 2, 2)
-        self.form.addWidget(self.le3, 3, 2)
-        self.form.addWidget(self.le4, 4, 2)
-        self.form.addWidget(self.chkbox2, 2, 3)
-        self.form.addWidget(self.btn5, 5, 1, 1, 3)
+        self.form.addWidget(self.type_excit_lbl, 1, 1)
+        self.form.addWidget(self.type_excit_cbox, 1, 2)
+        self.form.addWidget(self.stackedWidget, 2, 1, 1, 3)
+        self.form.addWidget(self.excit_button, 3, 1, 1, 3)
 
         self.grid = QGridLayout()
         self.grid.addLayout(self.form, 1, 1)
         self.grid.addWidget(self.excitationCanvas, 1, 2)
         self.setLayout(self.grid)
 
+    def import_loading(self):
+        fileName = QFileDialog.getOpenFileName(self, 'Abrir arquivo', './save', filter="Arquivo de Texto (*.txt)")
+        self.generalExcitation.loadLineEdit.setText(fileName)
+
+    def type_change(self):
+        type = get_text(self.type_excit_cbox)
+
+        if type == 'Seno':
+            self.stackedWidget.setCurrentWidget(self.sineExcitation)
+        elif type == 'Genérico':
+            self.stackedWidget.setCurrentWidget(self.generalExcitation)
+
     def lb2_change(self):
-        if self.chkbox2.isChecked():
-            self.lb2.setText('Relação de Frequências: (decimal)')
-            self.le2.setPlaceholderText('0.9')
+        if self.sineExcitation.frequency_sine_cbox.isChecked():
+            self.sineExcitation.frequency_sine_lbl.setText('Relação de Frequências: (decimal)')
+            self.sineExcitation.frequency_sine_le.setPlaceholderText('0.9')
         else:
-            self.lb2.setText('Frequência: (rad/s)')
-            self.le2.setPlaceholderText('30')
+            self.sineExcitation.frequency_sine_lbl.setText('Frequência: (rad/s)')
+            self.sineExcitation.frequency_sine_le.setPlaceholderText('30')
 
     def add_excitation(self):
-        exct_type = get_text(self.combox0)
+        exct_type = get_text(self.type_excit_cbox)
 
         if exct_type == 'Seno':
-            amplitude = float(get_text(self.le1))
-            frequency = float(get_text(self.le2))
-            relativeFrequency = float(self.chkbox2.isChecked())
-            exctDuration = float(get_text(self.le3))
-            anlyDuration = float(get_text(self.le4))
+            amplitude = float(get_text(self.sineExcitation.amplitude_sine_le))
+            frequency = float(get_text(self.sineExcitation.frequency_sine_le))
+            relativeFrequency = float(self.sineExcitation.frequency_sine_cbox.isChecked())
+            exctDuration = float(get_text(self.sineExcitation.duration_exc_le))
+            anlyDuration = float(get_text(self.sineExcitation.duation_anl_sine_le))
 
             if relativeFrequency and inputData.stories == {}:
                 icon = QStyle.SP_MessageBoxWarning
@@ -1288,6 +1347,32 @@ class ExcitationTab(QWidget):
                 a = np.hstack((a, np.array([0 for i in range(len(tAnly) - len(tExct))])))
 
                 self.excitationCanvas.plot_excitation(tAnly, a)
+        elif exct_type == 'Genérico':
+            fileName = get_text(self.generalExcitation.loadLineEdit)
+            file = open(fileName, 'r')
+            unit = file.readline()
+            lines = int(file.readline())
+            g = inputData.configurations.gravity
+
+            t = []
+            a = []
+
+            for i in range(lines):
+                line = file.readline()
+                line = line.split(', ')
+                line[0] = float(line[0])
+                line[1] = float(line[1])
+                t.append(line[0])
+                if unit == 'unit: g\n':
+                    a.append(line[1] * g)
+                elif unit == 'unit: m/s2\n':
+                    a.append(line[1])
+
+            excitation = Excitation(exct_type, t=t, a=a, structure=inputData.stories, tlcd=inputData.tlcd,
+                                    fileName=fileName)
+            inputData.excitation = excitation
+
+            self.excitationCanvas.plot_excitation(inputData.excitation.t_input, inputData.excitation.a_input)
 
 
 class ReportTab(QWidget):
@@ -1360,6 +1445,9 @@ Frequência: {}
 Duração da excitação: {} s
 Tempo de análise: {} s""".format(inputData.excitation.type, inputData.excitation.amplitude, self.freq,
                                  inputData.excitation.exctDuration, inputData.excitation.anlyDuration)
+        elif inputData.excitation.type == 'Genérico':
+            self.exctData = """Tipo de excitação: {}
+Arquivo fonte: {}""".format(inputData.excitation.type, inputData.excitation.fileName)
 
         self.h2_config = 'Configurações'
 
@@ -1669,32 +1757,34 @@ def compare_anal_sol(case):
         1 andar, vibração forçada ou livre, com ou sem amortecimento da estrutura e sem tlcd.
         qualquer frequência, qualquer CC
         """
-        # TODO check initial velocity condition
         m = inputData.stories[1].mass
         # c = 0
-        k = 24*(25e9)*(0.35*0.35**3/12)/(3**3)      #24EI/L^3 (engastado-engastado)
+        k = 24 * (25e9) * (0.35 * 0.35 ** 3 / 12) / (3 ** 3)  # 24EI/L^3 (engastado-engastado)
         # print(m, c, k)
-        omega_n = np.sqrt(k/m)
-        ksi = inputData.configurations.relativeDampingRatio               # c/(2*m*omega_n)
+        omega_n = np.sqrt(k / m)
+        ksi = inputData.configurations.relativeDampingRatio  # c/(2*m*omega_n)
         omega_d = omega_n * np.sqrt(1 - ksi ** 2)
 
         amplitude = inputData.excitation.amplitude
-        p0 = amplitude*m
+        p0 = amplitude * m
         frequencyInput = inputData.excitation.frequencyInput
-        omega = frequencyInput*omega_n  # ressonância
+        omega = frequencyInput * omega_n  # ressonância
 
-        C = (p0/k)*((1-(omega/omega_n)**2)/((1-(omega/omega_n)**2)**2 + (2*ksi*(omega/omega_n))**2))
-        D = (p0/k)*((-2*ksi*(omega / omega_n))/((1-(omega/omega_n)**2)**2 + (2*ksi*(omega / omega_n))**2))
+        C = (p0 / k) * (
+        (1 - (omega / omega_n) ** 2) / ((1 - (omega / omega_n) ** 2) ** 2 + (2 * ksi * (omega / omega_n)) ** 2))
+        D = (p0 / k) * (
+        (-2 * ksi * (omega / omega_n)) / ((1 - (omega / omega_n) ** 2) ** 2 + (2 * ksi * (omega / omega_n)) ** 2))
 
         x0 = inputData.configurations.initialDisplacement
         x10 = inputData.configurations.initialVelocity
         # print(x0, x10)
-        A = x0 - D                                      # x(0) = 0
-        B = (x10 + ksi*omega_n*A - omega*C)/omega_d       # x'(0) = 0
+        A = x0 - D  # x(0) = 0
+        B = (x10 + ksi * omega_n * A - omega * C) / omega_d  # x'(0) = 0
 
         t = np.linspace(0, 3, 2000)
-        x = np.exp(-ksi*omega_n*t)*(A*np.cos(omega_d*t) + B*np.sin(omega_d*t)) + C*np.sin(omega*t) + D*np.cos(omega*t)
-        dmf = (max(list(x)))/(p0/k)
+        x = np.exp(-ksi * omega_n * t) * (A * np.cos(omega_d * t) + B * np.sin(omega_d * t)) + C * np.sin(
+            omega * t) + D * np.cos(omega * t)
+        dmf = (max(list(x))) / (p0 / k)
         # print(dmf)
 
         t_num = outputData.dynamicResponse.t
@@ -1708,36 +1798,31 @@ def compare_anal_sol(case):
         plt.show()
 
     elif case == 2:
-        m = inputData.stories[3].mass
-        k = inputData.stories[3].E
-        omega_n = np.sqrt(k / m)
+        # Calculate the damping ratio of each story
+        ksi = [0.02, 0.03, 0.044, 0.052]
+        for i, j in zip(inputData.stories.values(), ksi):
+            i.calc_damping_ratio(j)
 
-        outputData.forceMatrix[0, :] *= 0
-        outputData.forceMatrix[1, :] *= 0
+        mass = assemble_mass_matrix(inputData.stories, inputData.tlcd)
+        damping = assemble_damping_matrix(inputData.stories, inputData.tlcd)
+        stiffness = assemble_stiffness_matrix(inputData.stories, inputData.tlcd)
+        force = assemble_force_matrix(inputData.excitation, mass, inputData.configurations)
 
-        outputData.dynamicResponse = ODESolver(outputData.massMatrix, outputData.dampingMatrix,
-                                               outputData.stiffnessMatrix, outputData.forceMatrix,
-                                               inputData.configurations)
+        outputData_ = OutputData(mass, damping, stiffness, force, inputData.configurations)
 
-        amplitude = inputData.excitation.amplitude
-        p0 = amplitude * m
-        frequencyInput = inputData.excitation.frequencyInput
-        omega = frequencyInput * omega_n  # ressonância
+        from matplotlib.figure import Figure
 
-        t = np.linspace(0, 3, 2000)
-        x = 0.0533*p0*np.sin(omega*t) + \
-             (((omega**2)/169.52)*(1.183**2)*p0*np.sin(omega*t))/(28.79*(1-(omega**2)/169.52)) + \
-             (((omega ** 2) / 3064.73) * (0.94 ** 2) * p0 * np.sin(omega * t)) / (292.069 * (1 - (omega ** 2) / 3064.73)) + \
-             (((omega ** 2) / 10290.07) * (3.897 ** 2) * p0 * np.sin(omega * t)) / (14187.953 * (1 - (omega ** 2) / 10290.07))
+        t_num = outputData_.dynamicResponse.t
+        x_num = outputData_.dynamicResponse.x[3, :].A1
+        v_num = outputData_.dynamicResponse.v[3, :].A1
+        a_num = outputData_.dynamicResponse.a[3, :].A1
 
-        t_num = outputData.dynamicResponse.t
-        x_num = outputData.dynamicResponse.x[2, :].A1
-        plt.plot(t, x, '-r', label='Solução Analítica')
-        plt.plot(t_num, x_num, '-b', label='Solução Numérica')
+        plt.plot(t_num, a_num, '-b', label='Solução Numérica')
         plt.legend()
         plt.title('Deslocamento em Função do Tempo')
         plt.xlabel('t (s)')
         plt.ylabel('x (m)')
+        plt.grid()
         plt.show()
 
 
