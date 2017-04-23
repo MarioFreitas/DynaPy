@@ -1,5 +1,6 @@
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 
 
 class TLCDCanvas(QGraphicsView):
@@ -36,7 +37,7 @@ class TLCDCanvas(QGraphicsView):
             # self.msgRemoveStory.setWindowIcon(self.msgRemoveStory.style().standardIcon(icon))
             # self.msgRemoveStory.show()
 
-        elif tlcd.type == 'TLCD Simples':
+        elif tlcd.type == 'Basic TLCD':
             self.scene1 = QGraphicsScene(self)
             self.setScene(self.scene1)
 
@@ -49,7 +50,7 @@ class TLCDCanvas(QGraphicsView):
             h2 = QGraphicsLineItem(-B/2+D, -D, B/2-D, -D)
             h3 = QGraphicsLineItem(-B/2, -H, -B/2+D, -H)
             h4 = QGraphicsLineItem(B/2, -H, B/2-D, -H)
-            h5 =QGraphicsLineItem(-B/2, -h, -B/2+D, -h)
+            h5 = QGraphicsLineItem(-B/2, -h, -B/2+D, -h)
             h6 = QGraphicsLineItem(B/2, -h, B/2-D, -h)
 
             v1 = QGraphicsLineItem(-B/2, 0, -B/2, -H)

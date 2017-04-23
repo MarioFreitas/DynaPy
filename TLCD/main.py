@@ -3,15 +3,17 @@ Script name: TLCD Analyser GUI
 Author: Mario Raul Freitas
 
 This script contains the Graphical User Interface code for the TLCD Analyser software.
-It utilises PyQt4 as the GUI framework.
+It utilises PyQt5 as the GUI framework.
 This is the main script of the project and will be used to generate the .exe file for
 distribution.
 """
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 import numpy as np
 import sys
+from DynaPy.TLCD.GUI.mainWindowGUI import Ui_MainWindow
 from DynaPy.TLCD.GUI.DpInputData import InputData
 from DynaPy.TLCD.GUI.DpConfigurations import Configurations
 from DynaPy.TLCD.GUI.DpOutputData import OutputData
@@ -48,8 +50,8 @@ class RunSimulationThread(QThread):
         stiffness = assemble_stiffness_matrix(self.inputData.stories, self.inputData.tlcd)
         force = assemble_force_matrix(self.inputData.excitation, mass, self.inputData.configurations)
 
-        outputData = OutputData(mass, damping, stiffness, force, self.inputData.configurations)
-        self.mySignal.emit(outputData)
+        outputData_ = OutputData(mass, damping, stiffness, force, self.inputData.configurations)
+        self.mySignal.emit(outputData_)
 
 
 class RunSetOfSimulationsThread(QThread):
@@ -84,7 +86,7 @@ class RunSetOfSimulationsThread(QThread):
         return outputData.DMF
 
 
-class MainWindow(QMainWindow):
+class MainWindow(QMainWindow, Ui_MainWindow):
     """
     Main window of the application. Contains all global parameters of the GUI application.
     """
@@ -98,64 +100,122 @@ class MainWindow(QMainWindow):
         # Initiate parent class
         super(MainWindow, self).__init__(parent)
 
-        # Set up MainWindow's child widgets
-        self.mainWidget = MainWidget(self)
-        self.setCentralWidget(self.mainWidget)
-
-        # MainWindow Geometry, Title and Icon
-        self.setGeometry(100, 100, 800, 600)
-        self.setWindowTitle('Dynapy TLCD Analyser')
+        # Setup GUI
+        self.setupUi(self)
         self.setWindowIcon(QIcon(None))
+        self.setGeometry(100, 100, 800, 600)
+        # with open('./GUI/styleSheet.qss', 'r') as css:
+        #     self.setStyleSheet(css.read())
 
         # Declare save file
         self.fileName = None
 
-        # File menu actions
-        self.new_file_action()
-        self.open_file_action()
-        self.save_file_action()
-        self.save_file_as_action()
-        self.export_report_action()
-        self.export_animation_action()
-        self.quit_action()
+        # Connect Actions
+        self.actionNewFile.triggered.connect(self.new_file)
+        self.actionOpenFile.triggered.connect(self.open_file)
+        self.actionSaveFile.triggered.connect(self.save_file)
+        self.actionSaveAs.triggered.connect(self.save_file_as)
+        self.actionQuit.triggered.connect(self.close)
+        self.actionFiniteDifferenceMethod.triggered.connect(self.set_method_mdf)
+        self.actionLinearAccelerationMethod.triggered.connect(self.set_method_lin_accel)
+        self.actionStepSize.triggered.connect(self.time_step)
+        self.actionBoundaryConditions.triggered.connect(self.boundary_conditions)
+        self.actionStructureDamping.triggered.connect(self.structure_damping)
+        self.actionFluidParameters.triggered.connect(self.fluid_parameters)
+        self.actionRunDynamicResponse.triggered.connect(self.run_simulation)
+        self.actionDynamicMagnificationFactor.triggered.connect(self.run_set_of_simulations)
+        self.actionMaximize.triggered.connect(self.showMaximized)
+        self.actionFullScreen.triggered.connect(self.toggle_full_screen)
+        self.actionAbout.triggered.connect(self.about)
+        self.actionDevelopmentTool.triggered.connect(self.dev_tool)
 
-        # Configurations Menu actions
-        self.methods_menu()
-        self.time_step_action()
-        self.boundary_conditions_action()
-        self.structure_damping_action()
-        self.fluid_parameters_action()
+        # TODO Implement export, optimize and animation actions
+        self.actionExportAnimation.setDisabled(True)
+        self.actionExportReport.setDisabled(True)
+        self.actionOptimization.setDisabled(True)
+        self.actionAnimation.setDisabled(True)
 
-        # Run Menu actions
-        self.run_simulation_action()
-        self.run_set_of_simulations_action()
-        self.run_optimization_action()
-        self.run_animation_action()
+        # Structure Canvas
+        self.structureWidget.structureCanvas = StructureCanvas(self.structureWidget)
+        self.structureWidget.grid = QGridLayout()
+        self.structureWidget.grid.addWidget(self.structureWidget.structureCanvas, 1, 1)
+        self.structureWidget.setLayout(self.structureWidget.grid)
 
-        # Window Menu actions
-        self.maximize_action()
-        self.full_screen_action()
+        # TLCD Canvas
+        self.tlcdWidget.tlcdCanvas = TLCDCanvas(self.tlcdWidget)
+        self.tlcdWidget.grid = QGridLayout()
+        self.tlcdWidget.grid.addWidget(self.tlcdWidget.tlcdCanvas, 1, 1)
+        self.tlcdWidget.setLayout(self.tlcdWidget.grid)
 
-        # Help Menu actions
-        self.about_action()
-        self.dev_tool_action()
+        # Excitation Canvas
+        self.excitationWidget.excitationCanvas = PltCanvas()
+        self.excitationWidget.mpl_toolbar = NavigationToolbar(self.excitationWidget.excitationCanvas, self)
+        self.excitationWidget.gridLabel = QLabel('Show Grid', self)
+        self.excitationWidget.gridChkBox = QCheckBox(self)
+        self.excitationWidget.gridChkBox.stateChanged.connect(self.excitation_grid_toggle)
 
-        # Main Menu Initialization
-        self.main_menu()
+        self.excitationWidget.gridLayout = QGridLayout()
+        self.excitationWidget.gridLayout.addWidget(self.excitationWidget.excitationCanvas, 1, 1, 1, 3)
+        self.excitationWidget.gridLayout.addWidget(self.excitationWidget.gridLabel, 2, 1)
+        self.excitationWidget.gridLayout.addWidget(self.excitationWidget.gridChkBox, 2, 2)
+        self.excitationWidget.gridLayout.addWidget(self.excitationWidget.mpl_toolbar, 2, 3)
+
+        self.excitationWidget.setLayout(self.excitationWidget.gridLayout)
+
+        # Dynamic Response Canvas
+        self.dynRespWidget.dynRespCanvas = PltCanvas()
+        self.dynRespWidget.mpl_toolbar = NavigationToolbar(self.dynRespWidget.dynRespCanvas, self)
+        self.dynRespWidget.gridLabel = QLabel('Show Grid', self)
+        self.dynRespWidget.gridChkBox = QCheckBox(self)
+        self.dynRespWidget.gridChkBox.stateChanged.connect(self.dynamic_response_grid_toggle)
+
+        self.dynRespWidget.gridLayout = QGridLayout()
+        self.dynRespWidget.gridLayout.addWidget(self.dynRespWidget.dynRespCanvas, 1, 1, 1, 3)
+        self.dynRespWidget.gridLayout.addWidget(self.dynRespWidget.gridLabel, 2, 1)
+        self.dynRespWidget.gridLayout.addWidget(self.dynRespWidget.gridChkBox, 2, 2)
+        self.dynRespWidget.gridLayout.addWidget(self.dynRespWidget.mpl_toolbar, 2, 3)
+
+        self.dynRespWidget.setLayout(self.dynRespWidget.gridLayout)
+
+        # DMF Canvas
+        self.dmfWidget.dmfCanvas = PltCanvas()
+        # self.dmfWidget.setMinimumWidth(700)
+        self.dmfWidget.mpl_toolbar = NavigationToolbar(self.dmfWidget.dmfCanvas, self)
+        self.dmfWidget.gridLabel = QLabel('Show Grid', self)
+        self.dmfWidget.gridChkBox = QCheckBox(self)
+        self.dmfWidget.gridChkBox.stateChanged.connect(self.dmf_grid_toggle)
+
+        self.dmfWidget.canvas = QGridLayout()
+        self.dmfWidget.canvas.addWidget(self.dmfWidget.dmfCanvas, 1, 1, 1, 4)
+        self.dmfWidget.canvas.addWidget(self.dmfWidget.gridLabel, 2, 1)
+        self.dmfWidget.canvas.addWidget(self.dmfWidget.gridChkBox, 2, 2)
+        self.dmfWidget.canvas.addWidget(self.dmfWidget.mpl_toolbar, 2, 3)
+        self.dmfWidget.setLayout(self.dmfWidget.canvas)
+
+        self.holdPlotCheckBox.stateChanged.connect(self.dmfWidget.dmfCanvas.axes.hold)
+        self.cleanPlotButton.clicked.connect(self.dmfWidget.dmfCanvas.reset_canvas)
+
+        # Connect Buttons
+        self.addStoryBtn.clicked.connect(self.add_story)
+        self.removeStoryBtn.clicked.connect(self.remove_story)
+        self.confirmTlcdBtn.clicked.connect(self.add_tlcd)
+        self.confirmExcitationButton.clicked.connect(self.add_excitation)
+        self.importExcitationButton.clicked.connect(self.import_excitation)
+        self.generateExcitationButton.clicked.connect(self.generate_excitation)
+        self.addToPlotButton.clicked.connect(self.dynamic_response_add_list2_item)
+        self.removeFromPlotButton.clicked.connect(self.dynamic_response_remove_list2_item)
+        self.plotButton.clicked.connect(self.plot_dyn_resp)
+
+        # Connect ComboBoxes Value Changed
+        self.storyNumberComboBox.currentIndexChanged.connect(self.set_structure_text_change)
+        self.tlcdModelComboBox.currentIndexChanged.connect(self.change_tlcd_option)
+        self.excitationTypeComboBox.currentIndexChanged.connect(self.excitation_type_change)
+
+        # Connect Checkboxes
+        self.sineFrequencyRatioCheckBox.stateChanged.connect(self.excitation_frequency_label_change)
 
         # Show GUI
         self.showMaximized()
-
-    def new_file_action(self):
-        """
-        Action for creating a new file. Resets the entire application.
-        Shortcut: Ctrl + N
-        :return: None
-        """
-        self.newFileAct = QAction('Novo', self)
-        self.newFileAct.setShortcut('Ctrl+N')
-        self.newFileAct.triggered.connect(self.new_file)
-        # TODO update new file code for new assets
 
     def new_file(self):
         """ Resets all GUI inputs, inputData variable and save file.
@@ -164,8 +224,7 @@ class MainWindow(QMainWindow):
         """
 
         # Set stories combobox index to 0
-        structureTab = self.mainWidget.tabs.structureTab
-        structureTab.combox0.setCurrentIndex(0)
+        self.storyNumberComboBox.setCurrentIndex(0)
 
         # Reset inputData
         global inputData
@@ -180,57 +239,40 @@ class MainWindow(QMainWindow):
         self.setWindowTitle('Dynapy TLCD Analyser')
 
         # Reset GUI
-        for i in range(structureTab.combox0.count() - 1, 0, -1):
-            structureTab.combox0.removeItem(i)
-        structureTab.le1.setText('')
-        structureTab.le2.setText('')
-        structureTab.le3.setText('')
-        structureTab.le4.setText('')
-        structureTab.le5.setText('')
-        structureTab.structureCanvas.painter(inputData.stories)
+        for i in range(self.storyNumberComboBox.count() - 1, 0, -1):
+            self.storyNumberComboBox.removeItem(i)
+        self.storyMassLineEdit.setText('')
+        self.storyHeightLineEdit.setText('')
+        self.columnWidthLineEdit.setText('')
+        self.columnDepthLineEdit.setText('')
+        self.elasticityModuleLineEdit.setText('')
+        self.structureWidget.structureCanvas.painter(inputData.stories)
 
-        tlcdTab = self.mainWidget.tabs.tlcdTab
-        tlcdTab.tlcdTypeCbox.setCurrentIndex(0)
-        tlcdTab.simpleTLCD.le1.setText('')
-        tlcdTab.simpleTLCD.le2.setText('')
-        tlcdTab.simpleTLCD.le3.setText('')
-        tlcdTab.tlcdCanvas.painter(inputData.tlcd)
+        self.tlcdModelComboBox.setCurrentIndex(0)
+        self.diameterSimpleTlcdLineEdit.setText('')
+        self.waterLevelSimpleTlcdLineEdit.setText('')
+        self.widthSimpleTlcdLineEdit.setText('')
+        self.tlcdWidget.tlcdCanvas.painter(inputData.tlcd)
 
-        excitationTab = self.mainWidget.tabs.excitationTab
-        excitationTab.type_excit_cbox.setCurrentIndex(0)
-        excitationTab.sineExcitation.amplitude_sine_le.setText('')
-        excitationTab.sineExcitation.frequency_sine_le.setText('')
-        excitationTab.sineExcitation.duration_exc_le.setText('')
-        excitationTab.sineExcitation.duation_anl_sine_le.setText('')
-        excitationTab.sineExcitation.frequency_sine_cbox.setChecked(True)
-        excitationTab.excitationCanvas.plot_excitation([], [])
+        self.excitationTypeComboBox.setCurrentIndex(0)
+        self.sineAmplitudeLineEdit.setText('')
+        self.sineFrequencyLineEdit.setText('')
+        self.sineAnalysisDurationLineEdit.setText('')
+        self.sineExcitationDurationLineEdit.setText('')
+        self.sineFrequencyRatioCheckBox.setChecked(True)
+        self.excitationWidget.excitationCanvas.plot_excitation([], [])
+        self.excitationFileLineEdit.setText('')
 
-        reportTab = self.mainWidget.tabs.reportTab
-        reportTab.te1.setText("""Relatório ainda não gerado.
+        self.reportTextBrowser.setText("""Relatório ainda não gerado.
 Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.""")
-        reportTab.te1.setFont(QFont("Times", 14))
+        self.reportTextBrowser.setFont(QFont("Times", 14))
 
-        dynRespTab = self.mainWidget.tabs.dynRespTab
-        dynRespTab.list1.clear()
-        dynRespTab.list2.clear()
-        dynRespTab.dynRespCanvas.reset_canvas()
+        self.list1.clear()
+        self.list2.clear()
+        self.dynRespWidget.dynRespCanvas.reset_canvas()
 
-        dmfTab = self.mainWidget.tabs.dmfTab
-
-        animationTab = self.mainWidget.tabs.animationTab
-
-        self.exportReportAct.setDisabled(True)
-        self.exportAnimationAct.setDisabled(True)
-
-    def open_file_action(self):
-        """
-        Action for opening a file. Resets the entire application and loads file info.
-        Shortcut: Ctrl + O
-        :return: None
-        """
-        self.openFileAct = QAction('Abrir', self)
-        self.openFileAct.setShortcut('Ctrl+O')
-        self.openFileAct.triggered.connect(self.open_file)
+        self.actionExportReport.setDisabled(True)
+        self.actionExportAnimation.setDisabled(True)
 
     def open_file(self, triggered=False, fileName=None):
         """ Calls self.new_file to reset everything. Then, brings a open file dialog box and save the directory to
@@ -241,7 +283,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         if fileName is not None:
             self.fileName = fileName
         else:
-            fileName = QFileDialog.getOpenFileName(self, 'Abrir arquivo', './save', filter="DynaPy File (*.dpfl)")
+            fileName = QFileDialog.getOpenFileName(self, 'Open File', './save', filter="DynaPy File (*.dpfl)")[0]
             if fileName == '':
                 return None
             self.new_file()
@@ -273,15 +315,15 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
         for i in range(1, storiesNumber + 1):
             inputData.stories.update({i: eval(storiesData[i])})
-            self.mainWidget.tabs.structureTab.combox0.addItem(str(i + 1))
+            self.storyNumberComboBox.addItem(str(i + 1))
 
         if tlcdData is not None:
             inputData.tlcd = TLCD(tlcdData[0], tlcdData[1], tlcdData[2], tlcdData[3])
-        if excitationData[0] == 'Seno':
+        if excitationData[0] == 'Sine Wave':
             inputData.excitation = Excitation(excitationData[0], excitationData[1], excitationData[2],
                                               excitationData[3], excitationData[4], excitationData[5],
                                               inputData.stories, inputData.tlcd)
-        elif excitationData[0] == 'Genérico':
+        elif excitationData[0] == 'General Excitation':
             inputData.excitation = Excitation(excitationData[0], t=excitationData[1], a=excitationData[2],
                                               fileName=excitationData[3],
                                               structure=inputData.stories, tlcd=inputData.tlcd)
@@ -289,65 +331,39 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
                                                   configurationsData[3], configurationsData[4], configurationsData[5],
                                                   configurationsData[6])
 
-        self.mainWidget.tabs.structureTab.set_text_change()
-        self.mainWidget.tabs.structureTab.structureCanvas.painter(inputData.stories)
+        self.set_structure_text_change()
+        self.structureWidget.structureCanvas.painter(inputData.stories)
 
         if inputData.tlcd is None:
-            tlcdTypeIndex = self.mainWidget.tabs.tlcdTab.tlcdTypeCbox.findText('Nenhum')
-        elif inputData.tlcd.type == 'TLCD Simples':
-            tlcdTypeIndex = self.mainWidget.tabs.tlcdTab.tlcdTypeCbox.findText(str(inputData.tlcd.type))
-            self.mainWidget.tabs.tlcdTab.tlcdTypeCbox.setCurrentIndex(tlcdTypeIndex)
-            self.mainWidget.tabs.tlcdTab.simpleTLCD.le1.setText(str(inputData.tlcd.diameter * 100))
-            self.mainWidget.tabs.tlcdTab.simpleTLCD.le2.setText(str(inputData.tlcd.width))
-            self.mainWidget.tabs.tlcdTab.simpleTLCD.le3.setText(str(inputData.tlcd.waterHeight * 100))
-            self.mainWidget.tabs.tlcdTab.tlcdCanvas.painter(inputData.tlcd)
+            tlcdTypeIndex = self.tlcdModelComboBox.findText('None')
+            self.tlcdModelComboBox.setCurrentIndex(tlcdTypeIndex)
+        elif inputData.tlcd.type == 'Basic TLCD':
+            tlcdTypeIndex = self.tlcdModelComboBox.findText(str(inputData.tlcd.type))
+            self.tlcdModelComboBox.setCurrentIndex(tlcdTypeIndex)
+            self.diameterSimpleTlcdLineEdit.setText(str(inputData.tlcd.diameter * 100))
+            self.widthSimpleTlcdLineEdit.setText(str(inputData.tlcd.width))
+            self.waterLevelSimpleTlcdLineEdit.setText(str(inputData.tlcd.waterHeight * 100))
+            self.tlcdWidget.tlcdCanvas.painter(inputData.tlcd)
 
-        exctTypeIndex = self.mainWidget.tabs.excitationTab.type_excit_cbox.findText(str(inputData.excitation.type))
-        self.mainWidget.tabs.excitationTab.type_excit_cbox.setCurrentIndex(exctTypeIndex)
-        if inputData.excitation.type == 'Seno':
-            self.mainWidget.tabs.excitationTab.sineExcitation.amplitude_sine_le.setText(
-                str(inputData.excitation.amplitude))
-            self.mainWidget.tabs.excitationTab.sineExcitation.frequency_sine_le.setText(
-                str(inputData.excitation.frequencyInput))
-            self.mainWidget.tabs.excitationTab.sineExcitation.duration_exc_le.setText(
-                str(inputData.excitation.exctDuration))
-            self.mainWidget.tabs.excitationTab.sineExcitation.duation_anl_sine_le.setText(
-                str(inputData.excitation.anlyDuration))
-            self.mainWidget.tabs.excitationTab.sineExcitation.frequency_sine_cbox.setChecked(
-                inputData.excitation.relativeFrequency)
+        exctTypeIndex = self.excitationTypeComboBox.findText(str(inputData.excitation.type))
+        self.excitationTypeComboBox.setCurrentIndex(exctTypeIndex)
+        if inputData.excitation.type == 'Sine Wave':
+            self.sineAmplitudeLineEdit.setText(str(inputData.excitation.amplitude))
+            self.sineFrequencyLineEdit.setText(str(inputData.excitation.frequencyInput))
+            self.sineExcitationDurationLineEdit.setText(str(inputData.excitation.exctDuration))
+            self.sineAnalysisDurationLineEdit.setText(str(inputData.excitation.anlyDuration))
+            self.sineFrequencyRatioCheckBox.setChecked(inputData.excitation.relativeFrequency)
             tAnly = np.arange(0, inputData.excitation.anlyDuration + inputData.configurations.timeStep,
                               inputData.configurations.timeStep)
             tExct = np.arange(0, inputData.excitation.exctDuration + inputData.configurations.timeStep,
                               inputData.configurations.timeStep)
             a = inputData.excitation.amplitude * np.sin(inputData.excitation.frequency * tExct)
             a = np.hstack((a, np.array([0 for i in range(len(tAnly) - len(tExct))])))
-            self.mainWidget.tabs.excitationTab.excitationCanvas.plot_excitation(tAnly, a)
-        elif inputData.excitation.type == 'Genérico':
-            self.mainWidget.tabs.excitationTab.generalExcitation.loadLineEdit.setText(inputData.excitation.fileName)
-            self.mainWidget.tabs.excitationTab.excitationCanvas.plot_excitation(inputData.excitation.t_input,
+            self.excitationWidget.excitationCanvas.plot_excitation(tAnly, a)
+        elif inputData.excitation.type == 'General Excitation':
+            self.excitationFileLineEdit.setText(inputData.excitation.fileName)
+            self.excitationWidget.excitationCanvas.plot_excitation(inputData.excitation.t_input,
                                                                                 inputData.excitation.a_input)
-
-    def save_file_action(self):
-        """
-        Action for saving a file. Checks if there is a file open.
-        If true, saves all info input to this file.
-        If false, calls save_file_as_action.
-        Shortcut: Ctrl + S
-        :return: None
-        """
-        self.saveFileAct = QAction('Salvar', self)
-        self.saveFileAct.setShortcut('Ctrl+S')
-        self.saveFileAct.triggered.connect(self.save_file)
-
-    def save_file_as_action(self):
-        """
-        Action for saving a new file. Opens a file and save all info to it. Rewrites file.
-        Shortcut: Ctrl + Alt + S
-        :return: None
-        """
-        self.saveFileAsAct = QAction('Salvar como...', self)
-        self.saveFileAsAct.setShortcut('Ctrl+Alt+S')
-        self.saveFileAsAct.triggered.connect(self.save_file_as)
 
     def save_file(self):
         """ Checks for self.fileName: if None, calls save_file_as(), otherwise proceeds to the next check.
@@ -411,7 +427,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             stories = {}
             for i, j in inputData.stories.items():
                 stories.update({i: 'Story({}, {}, {}, {}, {}, "{}")'.format(j.mass, j.height, j.width,
-                                                                            j.depth, j.E, j.vinculum)})
+                                                                            j.depth, j.E, j.support)})
             self.file.write('{}\n'.format(stories))
 
             self.file.write('\nTLCD: \n-------------------\n')
@@ -424,17 +440,17 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
             self.file.write('\nExcitation: \n-------------------\n')
             excitation = inputData.excitation
-            if excitation.type == 'Seno':
+            if excitation.type == 'Sine Wave':
                 excitationData = (excitation.type, excitation.amplitude, excitation.frequencyInput,
                                   excitation.relativeFrequency, excitation.exctDuration, excitation.anlyDuration)
-            elif excitation.type == 'Genérico':
+            elif excitation.type == 'General Excitation':
                 excitationData = (excitation.type, excitation.t_input, excitation.a_input, excitation.fileName)
             self.file.write('{}\n'.format(excitationData))
 
             self.file.write('\nConfigurations: \n-------------------\n')
             configurations = inputData.configurations
             configurationsData = (configurations.method, configurations.timeStep, configurations.initialDisplacement,
-                                  configurations.initialVelocity, configurations.relativeDampingRatio,
+                                  configurations.initialVelocity, configurations.dampingRatio,
                                   configurations.liquidSpecificMass, configurations.kineticViscosity,
                                   configurations.gravity)
             self.file.write('{}\n'.format(configurationsData))
@@ -446,71 +462,22 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
         :return: None
         """
-        self.fileName = QFileDialog.getSaveFileName(self, 'Salvar como', './save', filter="DynaPy File (*.dpfl)")
+        self.fileName = QFileDialog.getSaveFileName(self, 'Salvar como', './save', filter="DynaPy File (*.dpfl)")[0]
         if self.fileName == '':
             self.fileName = None
             return
         self.setWindowTitle('Dynapy TLCD Analyser - [{}]'.format(self.fileName))
         self.save_file()
 
-    def export_report_action(self):
-        """
-        Action for exporting report as a text file.
-        Opens a file and saves report info to it.
-        Shortcut: Ctrl + Alt + E
-        :return: None
-        """
-        self.exportReportAct = QAction('Exportar relatório...', self)
-        self.exportReportAct.setShortcut('Ctrl+Alt+E')
-        # self.exportReportAct.triggered.connect(sys.exit)
-        self.exportReportAct.setDisabled(True)
-        # TODO implement export report code
+    def closeEvent(self, event):
+        quit_msg = "Are you sure you want to exit the program?"
+        reply = QMessageBox.question(self, 'Confirm Exit',
+                                     quit_msg, QMessageBox.Yes, QMessageBox.No)
 
-    def export_animation_action(self):
-        """
-        Action for exporting animation as a gif image.
-        Shortcut: Ctrl + Shift + E
-        :return: None
-        """
-        self.exportAnimationAct = QAction('Exportar animação...', self)
-        self.exportAnimationAct.setShortcut('Ctrl+Shift+E')
-        # self.exportAnimationAct.triggered.connect(sys.exit)
-        self.exportAnimationAct.setDisabled(True)
-        # TODO implement export animation code
-
-    def quit_action(self):
-        """
-        Action for quitting the application.
-        Shortcut: Ctrl + Q
-        :return: None
-        """
-        self.quitAct = QAction('Sair', self)
-        self.quitAct.setShortcut('Ctrl+Q')
-        self.quitAct.setStatusTip('Fecha o programa.')
-        self.quitAct.triggered.connect(sys.exit)
-
-    def methods_menu(self):
-        self.methodsMenu = QMenu('Métodos', self)
-
-        self.mdfMethod = QAction('Método das Diferenças Finitas', self)
-        self.mdfMethod.setCheckable(True)
-        self.mdfMethod.setChecked(True)
-        self.mdfMethod.triggered.connect(self.set_method_mdf)
-
-        self.linAccelMethod = QAction('Método da Aceleração Linear', self)
-        self.linAccelMethod.setCheckable(True)
-        self.linAccelMethod.triggered.connect(self.set_method_lin_accel)
-
-        self.methodsMenu.addAction(self.mdfMethod)
-        self.methodsMenu.addAction(self.linAccelMethod)
-        # TODO implement method choice code
-        # TODO add avg acceleration method and rk4 method
-        # TODO remember to modify set_method_* methods
-
-    def time_step_action(self):
-        self.timeStepAct = QAction('Passo...', self)
-        self.timeStepAct.setStatusTip('Altera o passo de tempo utilizado nas iterações')
-        self.timeStepAct.triggered.connect(self.time_step)
+        if reply == QMessageBox.Yes:
+            event.accept()
+        else:
+            event.ignore()
 
     def time_step(self):
         self.timeStepDialog = QWidget()
@@ -541,11 +508,6 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             self.error05.setWindowIcon(self.error05.style().standardIcon(icon))
             self.error05.setIcon(QMessageBox.Warning)
             self.error05.show()
-
-    def boundary_conditions_action(self):
-        self.boundaryConditionsAct = QAction('Condições de contorno...', self)
-        self.boundaryConditionsAct.setStatusTip('Altera deslocamento e velocidade inicial')
-        self.boundaryConditionsAct.triggered.connect(self.boundary_conditions)
 
     def boundary_conditions(self):
         self.boundaryConditionsDialog = QWidget()
@@ -584,18 +546,13 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             self.error06.setIcon(QMessageBox.Warning)
             self.error06.show()
 
-    def structure_damping_action(self):
-        self.structureDampingAct = QAction('Amortecimento da Estrutura...', self)
-        self.structureDampingAct.setStatusTip('Altera a taxa de amortecimento da estrutura')
-        self.structureDampingAct.triggered.connect(self.structure_damping)
-
     def structure_damping(self):
         self.structureDampingDialog = QWidget()
         self.structureDampingDialog.grid = QGridLayout()
         self.structureDampingDialog.label = QLabel('Taxa de amortecimento da estrutura:', self)
         self.structureDampingDialog.le = QLineEdit(self)
         self.structureDampingDialog.le.setPlaceholderText('0.02')
-        self.structureDampingDialog.le.setText(str(inputData.configurations.relativeDampingRatio))
+        self.structureDampingDialog.le.setText(str(inputData.configurations.dampingRatio))
         self.structureDampingDialog.button = QPushButton('Ok', self)
         self.structureDampingDialog.button.clicked.connect(self.structure_damping_config)
         self.structureDampingDialog.grid.addWidget(self.structureDampingDialog.label, 1, 1)
@@ -608,7 +565,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
     def structure_damping_config(self):
         try:
-            inputData.configurations.relativeDampingRatio = float(get_text(self.structureDampingDialog.le))
+            inputData.configurations.dampingRatio = float(get_text(self.structureDampingDialog.le))
             self.structureDampingDialog.hide()
         except ValueError:
             icon = QStyle.SP_MessageBoxWarning
@@ -618,11 +575,6 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             self.error07.setWindowIcon(self.error07.style().standardIcon(icon))
             self.error07.setIcon(QMessageBox.Warning)
             self.error07.show()
-
-    def fluid_parameters_action(self):
-        self.fluidParametersAct = QAction('Parâmetros do fluido...', self)
-        self.fluidParametersAct.setStatusTip('Altera os parâmetros do fluido')
-        self.fluidParametersAct.triggered.connect(self.fluid_parameters)
 
     def fluid_parameters(self):
         self.fluidParametersDialog = QWidget()
@@ -662,25 +614,12 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             self.error08.show()
 
     def set_method_mdf(self):
-        self.mdfMethod.setChecked(True)
-        self.linAccelMethod.setChecked(False)
+        self.actionFiniteDifferenceMethod.setChecked(True)
+        self.actionLinearAccelerationMethod.setChecked(False)
 
     def set_method_lin_accel(self):
-        self.mdfMethod.setChecked(False)
-        self.linAccelMethod.setChecked(True)
-
-    def run_simulation_action(self):
-        """
-        Action for running the program for a given set of parameters.
-        Generates dynamic response plots.
-        Generates simulation, but does not show up.
-        Shortcut: Ctrl + R
-        :return: None
-        """
-        self.runSimAct = QAction('Resposta Dinâmica', self)
-        self.runSimAct.setShortcut('Ctrl+R')
-        self.runSimAct.setStatusTip('Calcula e plota a resposta dinâmica da estrutura.')
-        self.runSimAct.triggered.connect(self.run_simulation)
+        self.actionFiniteDifferenceMethod.setChecked(False)
+        self.actionLinearAccelerationMethod.setChecked(True)
 
     def run_simulation(self):
         if inputData.stories == {} or inputData.excitation is None:
@@ -694,20 +633,20 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             self.error04.show()
         else:
             # Confirm tlcd
-            self.mainWidget.tabs.tlcdTab.add_tlcd()
+            self.add_tlcd()
 
             # Add the tlcd to the last story
             lastStory = inputData.stories[len(inputData.stories)]
             inputData.stories[len(inputData.stories)] = Story(lastStory.mass, lastStory.height, lastStory.width,
-                                                              lastStory.depth, lastStory.E, lastStory.vinculum,
+                                                              lastStory.depth, lastStory.E, lastStory.support,
                                                               inputData.tlcd)
 
             # Calculate the damping ratio of each story
             for i in inputData.stories.values():
-                i.calc_damping_ratio(inputData.configurations.relativeDampingRatio)
+                i.calc_damping_coefficient(inputData.configurations.dampingRatio)
 
             # Confirm excitation
-            self.mainWidget.tabs.excitationTab.add_excitation()
+            self.add_excitation()
 
             # Calculate response
             def process(outputSignal):
@@ -715,37 +654,20 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
                 outputData = outputSignal
 
                 # Generate plot
-                self.mainWidget.tabs.dynRespTab.add_list1_items()
+                self.dynamic_response_add_list1_items()
                 if inputData.tlcd is not None:
-                    self.mainWidget.tabs.dynRespTab.list1.setCurrentRow(
-                        self.mainWidget.tabs.dynRespTab.list1.count() - 2)
+                    self.list1.setCurrentRow(self.list1.count() - 2)
                 else:
-                    self.mainWidget.tabs.dynRespTab.list1.setCurrentRow(
-                        self.mainWidget.tabs.dynRespTab.list1.count() - 1)
-                self.mainWidget.tabs.dynRespTab.add_list2_item()
-                self.mainWidget.tabs.dynRespTab.plot_dyn_resp()
+                    self.list1.setCurrentRow(self.list1.count() - 1)
+                self.dynamic_response_add_list2_item()
+                self.plot_dyn_resp()
 
                 # Generate report
-                self.mainWidget.tabs.reportTab.generate_report_simulation()
+                self.generate_report_dynamic_response()
 
             self.runSimulationThread = RunSimulationThread(inputData)
             self.runSimulationThread.mySignal.connect(process)
             self.runSimulationThread.start()
-
-    def run_set_of_simulations_action(self):
-        """
-        Action for running the program for a given set of parameters multiple times.
-        Generates dynamic magnification factor plots and dynamic response at r=1.
-        Generates simulation, but does not show up.
-        Shortcut: Ctrl + Alt + R
-        :return: None
-        """
-        self.runSetofSimAct = QAction('DMF(r)', self)
-        self.runSetofSimAct.setShortcut('Ctrl+Alt+R')
-        self.runSetofSimAct.setStatusTip('Calcula e plota a o Fator de Amplificação Dinâmica' +
-                                         ' em função da Relação de Frequências.')
-        self.runSetofSimAct.triggered.connect(self.run_set_of_simulations)
-        # self.runSetofSimAct.setDisabled(True)
 
     def run_set_of_simulations(self):
         if inputData.stories == {} or inputData.excitation is None:
@@ -759,20 +681,20 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             self.error04.show()
         else:
             # Confirm tlcd
-            self.mainWidget.tabs.tlcdTab.add_tlcd()
+            self.add_tlcd()
 
             # Add the tlcd to the last story
             lastStory = inputData.stories[len(inputData.stories)]
             inputData.stories[len(inputData.stories)] = Story(lastStory.mass, lastStory.height, lastStory.width,
-                                                              lastStory.depth, lastStory.E, lastStory.vinculum,
+                                                              lastStory.depth, lastStory.E, lastStory.support,
                                                               inputData.tlcd)
 
             # Calculate the damping ratio of each story
             for i in inputData.stories.values():
-                i.calc_damping_ratio(inputData.configurations.relativeDampingRatio)
+                i.calc_damping_coefficient(inputData.configurations.dampingRatio)
 
             # Confirm excitation
-            self.mainWidget.tabs.excitationTab.add_excitation()
+            self.add_excitation()
 
             relativeFrequencies = np.arange(0.01, 2.01, 0.01)
 
@@ -780,77 +702,25 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
                 global DMFPlotList
                 dmfList = signalMessage
                 DMFPlotList = [relativeFrequencies, dmfList]
-                self.mainWidget.tabs.dmfTab.dmfCanvas.plot_dmf(relativeFrequencies, dmfList)
+                self.dmfWidget.dmfCanvas.plot_dmf(relativeFrequencies, dmfList)
 
             self.runSetOfSimulationsThread = RunSetOfSimulationsThread(inputData, relativeFrequencies)
             self.runSetOfSimulationsThread.mySignal.connect(process)
-            progressBar = self.mainWidget.tabs.dmfTab.progressBar
+            progressBar = self.dmfProgressBar
             self.runSetOfSimulationsThread.percentageSignal.connect(progressBar.setValue)
             self.runSetOfSimulationsThread.start()
 
-    def run_optimization_action(self):
-        """
-        Action for running the program for a given set of parameters and find optimum design.
-        Generates dynamic magnification factor plots and dynamic response at r=1.
-        Generates simulation, but does not show up.
-        Shortcut: Ctrl + R
-        :return: None
-        """
-        self.runOptimizationAct = QAction('Otimização', self)
-        self.runOptimizationAct.setShortcut('Ctrl+Alt+Shift+R')
-        self.runOptimizationAct.setStatusTip('Calcula e plota a resposta dinâmica da estrutura.')
-        # self.runOptimizationAct.triggered.connect(sys.exit)
-        self.runOptimizationAct.setDisabled(True)
-        # TODO Implement calculation and ploting code
-
-    def run_animation_action(self):
-        """
-        Action for running the program for a given set of parameters and find optimum design.
-        Generates dynamic magnification factor plots and dynamic response at r=1.
-        Generates simulation, but does not show up.
-        Shortcut: Ctrl + R
-        :return: None
-        """
-        self.runAnimationAct = QAction('Animação', self)
-        self.runAnimationAct.setShortcut('Ctrl+Shift+R')
-        self.runAnimationAct.setStatusTip('Gera animação da resposta dinâmica da estrutura.')
-        # self.runAnimationAct.triggered.connect(sys.exit)
-        self.runAnimationAct.setDisabled(True)
-        # TODO Implement calculation and ploting code
-
-    def maximize_action(self):
-        """
-        Action for maximizing the GUI Window.
-        Shortcut: None
-        :return: None
-        """
-        self.maximize = QAction('Maximizar', self)
-        self.maximize.setStatusTip('Maximiza a janela')
-        self.maximize.triggered.connect(self.showMaximized)
-
-    def full_screen_action(self):
-        """
-        Action for toggling full screen on and off.
-        Shortcut: Ctrl + F
-        :return: None
-        """
-        self.full_screen = QAction('Tela Cheia', self)
-        self.full_screen.setStatusTip('Modo tela cheia')
-        self.full_screen.setShortcut('Ctrl+F')
-        self.full_screen.triggered.connect(self.check_full_screen_func)
-        # TODO fix full screen toggling flickering
-
-    def check_full_screen_func(self):
+    def toggle_full_screen(self):
         """
         Method that checks if application is on full screen or not and toggles state.
         :return: None
         """
         if self.isFullScreen():
-            self.full_screen.triggered.connect(self.showNormal)
+            self.showMaximized()
         else:
-            self.full_screen.triggered.connect(self.showFullScreen)
+            self.showFullScreen()
 
-    def about_action(self):
+    def about(self):
         """
         Action for showing the application 'About'.
         Shortcut: F1
@@ -867,20 +737,11 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             'com o uso do programa. Não existe nenhum compromisso de bom funcionamento ou qualquer garantia.')
         self.aboutmsg.setWindowTitle('Dynapy TLCD Analyser')
         self.aboutmsg.setIconPixmap(QPixmap(None))
-
-        self.aboutAct = QAction('Sobre', self)
-        self.aboutAct.setShortcut('F1')
-        self.aboutAct.setStatusTip('Mostra as informações do programa')
-        self.aboutAct.triggered.connect(self.aboutmsg.exec_)
+        self.aboutmsg.exec_()
         # TODO Fix about text. Include icon, name, version, author, date and description.
 
-    def dev_tool_action(self):
-        self.devToolAct = QAction('Development Tool', self)
-        self.devToolAct.setShortcut('Shift+F10')
-        self.devToolAct.setStatusTip('Abre uma caixa de diálogo para executar linhas de código digitadas pelo usuário.')
-        self.devToolAct.triggered.connect(self.dev_tool)
-
     def dev_tool(self):
+
         self.devDialog = QWidget()
 
         self.devDialog.setGeometry(300, 300, 800, 200)
@@ -902,193 +763,34 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
     def dev_tool_exec(self):
         exec(get_text(self.devDialog.textEdit))
 
-    def main_menu(self):
-        """
-        Method for setting up Main Menu bar. Creates the menu and add the actions.
-        :return: None
-        """
-
-        # Create Main Menu Bar
-        mainMenu = self.menuBar()
-
-        # Create File Menu and add Actions
-        fileMenu = mainMenu.addMenu('Arquivo')
-        fileMenu.addAction(self.newFileAct)
-        fileMenu.addAction(self.openFileAct)
-        fileMenu.addAction(self.saveFileAct)
-        fileMenu.addAction(self.saveFileAsAct)
-        fileMenu.addSeparator()
-        fileMenu.addAction(self.exportReportAct)
-        fileMenu.addAction(self.exportAnimationAct)
-        fileMenu.addSeparator()
-        fileMenu.addAction(self.quitAct)
-
-        # Create Configurations Menu and add Actions
-        configMenu = mainMenu.addMenu('Configurações')
-        configMenu.addMenu(self.methodsMenu)
-        configMenu.addAction(self.timeStepAct)
-        configMenu.addAction(self.boundaryConditionsAct)
-        configMenu.addAction(self.structureDampingAct)
-        configMenu.addAction(self.fluidParametersAct)
-
-        # Create Run Menu and add Actions
-        runMenu = mainMenu.addMenu('Calcular')
-        runMenu.addAction(self.runSimAct)
-        runMenu.addAction(self.runSetofSimAct)
-        runMenu.addAction(self.runOptimizationAct)
-        runMenu.addAction(self.runAnimationAct)
-
-        # Create Window Menu and add Actions
-        windowMenu = mainMenu.addMenu('Janela')
-        windowMenu.addAction(self.maximize)
-        windowMenu.addAction(self.full_screen)
-        windowMenu.addSeparator()
-
-        # Create Help Menu and add Actions
-        helpMenu = mainMenu.addMenu('Ajuda')
-        helpMenu.addAction(self.aboutAct)
-        helpMenu.addSeparator()
-        helpMenu.addAction(self.devToolAct)
-
-        # Set up status bar
-        self.statusBar()
-
-
-class MainWidget(QWidget):
-    def __init__(self, parent):
-        super(MainWidget, self).__init__(parent)
-
-        self.tabs = TabWidget(self)
-
-        self.grid = QGridLayout()
-        self.grid.addWidget(self.tabs, 1, 1, 1, 1)
-        self.setLayout(self.grid)
-
-
-class TabWidget(QTabWidget):
-    def __init__(self, parent):
-        super(TabWidget, self).__init__(parent)
-
-        self.structureTab = StructureTab(self)
-        self.addTab(self.structureTab, 'Estrutura')
-
-        self.tlcdTab = TLCDTab(self)
-        self.addTab(self.tlcdTab, 'TLCD')
-
-        self.excitationTab = ExcitationTab(self)
-        self.addTab(self.excitationTab, 'Excitação')
-
-        self.reportTab = ReportTab(self)
-        self.addTab(self.reportTab, 'Relatório')
-
-        self.dynRespTab = DynRespTab(self)
-        self.addTab(self.dynRespTab, 'Resposta Dinâmica')
-
-        self.dmfTab = DMFTab(self)
-        self.addTab(self.dmfTab, 'DMF(r)')
-
-        self.animationTab = AnimationTab(self)
-        self.addTab(self.animationTab, 'Animação')
-
-
-class StructureTab(QWidget):
-    def __init__(self, parent):
-        super(StructureTab, self).__init__(parent)
-
-        self.lb0 = QLabel('Número do Pavimento: ', self)
-        self.lb1 = QLabel('Massa do Pavimento: (toneladas)', self)
-        self.lb2 = QLabel('Altura do Pavimento: (m)', self)
-        self.lb3 = QLabel('Largura dos Pilares: (cm)', self)
-        self.lb4 = QLabel('Profundidade dos Pilares: (cm)', self)
-        self.lb5 = QLabel('Módulo de Elasticidade dos Pilares: (GPa)', self)
-        self.lb6 = QLabel('Vínculo dos Pilares: ', self)
-
-        self.combox0 = QComboBox(self)
-        self.combox0.addItem('1')
-        self.combox0.currentIndexChanged.connect(self.set_text_change)
-
-        self.le1 = QLineEdit(self)
-        self.le1.setPlaceholderText('10')
-
-        self.le2 = QLineEdit(self)
-        self.le2.setPlaceholderText('3')
-
-        self.le3 = QLineEdit(self)
-        self.le3.setPlaceholderText('35')
-
-        self.le4 = QLineEdit(self)
-        self.le4.setPlaceholderText('35')
-
-        self.le5 = QLineEdit(self)
-        self.le5.setPlaceholderText('25')
-
-        self.combox6 = QComboBox(self)
-        self.combox6.addItem('Engastado-Engastado')
-        self.combox6.addItem('Engastado-Apoiado')
-        self.combox6.addItem('Apoiado-Engastado')
-        self.combox6.addItem('Apoiado-Apoiado')
-
-        self.btn7 = QPushButton('Adicionar Pavimento', self)
-        self.btn7.clicked.connect(self.add_story)
-
-        self.btn8 = QPushButton('Remover Pavimento', self)
-        self.btn8.clicked.connect(self.remove_story)
-
-        self.structureCanvas = StructureCanvas(self)
-
-        self.blanklb1 = QLabel('1', self)
-        self.blanklb1.setFixedSize(1, 1)
-        self.blanklb2 = QLabel('1', self)
-        self.blanklb2.setFixedSize(1, 1)
-
-        self.form = QGridLayout()
-        self.form.addWidget(self.lb0, 0, 1)
-        self.form.addWidget(self.lb1, 1, 1)
-        self.form.addWidget(self.lb2, 2, 1)
-        self.form.addWidget(self.lb3, 3, 1)
-        self.form.addWidget(self.lb4, 4, 1)
-        self.form.addWidget(self.lb5, 5, 1)
-        self.form.addWidget(self.lb6, 6, 1)
-        self.form.addWidget(self.combox0, 0, 2)
-        self.form.addWidget(self.le1, 1, 2)
-        self.form.addWidget(self.le2, 2, 2)
-        self.form.addWidget(self.le3, 3, 2)
-        self.form.addWidget(self.le4, 4, 2)
-        self.form.addWidget(self.le5, 5, 2)
-        self.form.addWidget(self.combox6, 6, 2)
-        self.form.addWidget(self.btn7, 7, 1, 1, 2)
-        self.form.addWidget(self.btn8, 8, 1, 1, 2)
-
-        self.grid = QGridLayout()
-        self.grid.addLayout(self.form, 1, 1)
-        self.grid.addWidget(self.structureCanvas, 1, 2)
-        self.setLayout(self.grid)
-
+    # Structure Methods
     def add_story(self):
-        storyNumber = int(get_text(self.combox0))  # integer
-        mass = float(get_text(self.le1)) * 1000  # float (ton -> kg)
-        height = float(get_text(self.le2))  # float (m -> m)
-        width = float(get_text(self.le3)) / 100  # float (cm -> m)
-        depth = float(get_text(self.le4)) / 100  # float (cm -> m)
-        E = float(get_text(self.le5)) * 1e9  # float (GPa -> Pa)
-        vinculum = str(get_text(self.combox6))  # string
+        storyNumber = int(get_text(self.storyNumberComboBox))  # integer
+        mass = float(get_text(self.storyMassLineEdit)) * 1e3  # float (ton -> kg)
+        height = float(get_text(self.storyHeightLineEdit))  # float (m -> m)
+        width = float(get_text(self.columnWidthLineEdit))  # float (m -> m)
+        depth = float(get_text(self.columnDepthLineEdit))  # float (m -> m)
+        E = float(get_text(self.elasticityModuleLineEdit)) * 1e9  # float (GPa -> Pa)
+        support = str(get_text(self.supportTypeComboBox))  # string
 
-        story = Story(mass, height, width, depth, E, vinculum)
+        story = Story(mass, height, width, depth, E, support)
         inputData.stories.update({storyNumber: story})
-        self.structureCanvas.painter(inputData.stories)
+        self.structureWidget.structureCanvas.painter(inputData.stories)
 
-        if self.combox0.currentIndex() + 1 == self.combox0.count():
-            self.combox0.addItem(str(int(get_text(self.combox0)) + 1))
-            self.combox0.setCurrentIndex(self.combox0.currentIndex() + 1)
+        if self.storyNumberComboBox.currentIndex() + 1 == self.storyNumberComboBox.count():
+            self.storyNumberComboBox.addItem(str(int(get_text(self.storyNumberComboBox)) + 1))
+            self.storyNumberComboBox.setCurrentIndex(self.storyNumberComboBox.currentIndex() + 1)
         else:
-            self.combox0.setCurrentIndex(self.combox0.currentIndex() + 1)
+            self.storyNumberComboBox.setCurrentIndex(self.storyNumberComboBox.currentIndex() + 1)
 
     def remove_story(self):
-        if self.combox0.currentIndex() + 1 == self.combox0.count() - 1:
-            storyNumber = int(get_text(self.combox0))
+        if self.storyNumberComboBox.currentIndex() + 1 == self.storyNumberComboBox.count() - 1:
+            storyNumber = int(get_text(self.storyNumberComboBox))
             inputData.stories.pop(storyNumber)
-            self.combox0.removeItem(storyNumber)
-            self.structureCanvas.painter(inputData.stories)
+            self.storyNumberComboBox.removeItem(storyNumber)
+            self.structureWidget.structureCanvas.painter(inputData.stories)
+            if self.storyNumberComboBox.currentIndex() != 0:
+                self.storyNumberComboBox.setCurrentIndex(self.storyNumberComboBox.currentIndex() - 1)
         else:
             icon = QStyle.SP_MessageBoxWarning
             self.msgRemoveStory = QMessageBox()
@@ -1097,227 +799,83 @@ class StructureTab(QWidget):
             self.msgRemoveStory.setWindowIcon(self.msgRemoveStory.style().standardIcon(icon))
             self.msgRemoveStory.show()
 
-    def set_text_change(self):
-        i = int(get_text(self.combox0))
+    def set_structure_text_change(self):
+        i = int(get_text(self.storyNumberComboBox))
         if i <= len(inputData.stories):
-            self.le1.setText(str(inputData.stories[i].mass / 1e3))
-            self.le2.setText(str(inputData.stories[i].height))
-            self.le3.setText(str(inputData.stories[i].width * 100))
-            self.le4.setText(str(inputData.stories[i].depth * 100))
-            self.le5.setText(str(inputData.stories[i].E / 1e9))
-            self.combox6.setCurrentIndex(self.combox6.findText(str(inputData.stories[i].vinculum)))
+            self.storyMassLineEdit.setText(str(inputData.stories[i].mass / 1e3))
+            self.storyHeightLineEdit.setText(str(inputData.stories[i].height))
+            self.columnWidthLineEdit.setText(str(inputData.stories[i].width))
+            self.columnDepthLineEdit.setText(str(inputData.stories[i].depth))
+            self.elasticityModuleLineEdit.setText(str(inputData.stories[i].E / 1e9))
+            self.supportTypeComboBox.setCurrentIndex(
+                self.supportTypeComboBox.findText(str(inputData.stories[i].support)))
 
         else:
-            self.le1.setText(str(inputData.stories[i - 1].mass / 1e3))
-            self.le2.setText(str(inputData.stories[i - 1].height))
-            self.le3.setText(str(inputData.stories[i - 1].width * 100))
-            self.le4.setText(str(inputData.stories[i - 1].depth * 100))
-            self.le5.setText(str(inputData.stories[i - 1].E / 1e9))
-            self.combox6.setCurrentIndex(self.combox6.findText(str(inputData.stories[i - 1].vinculum)))
+            self.storyMassLineEdit.setText(str(inputData.stories[i - 1].mass / 1e3))
+            self.storyHeightLineEdit.setText(str(inputData.stories[i - 1].height))
+            self.columnWidthLineEdit.setText(str(inputData.stories[i - 1].width))
+            self.columnDepthLineEdit.setText(str(inputData.stories[i - 1].depth))
+            self.elasticityModuleLineEdit.setText(str(inputData.stories[i - 1].E / 1e9))
+            self.supportTypeComboBox.setCurrentIndex(
+                self.supportTypeComboBox.findText(str(inputData.stories[i - 1].support)))
 
-
-class TLCDTab(QWidget):
-    def __init__(self, parent):
-        super(TLCDTab, self).__init__(parent)
-
-        size = QSizePolicy()
-        size.setHorizontalStretch(1)
-
-        # General Widgets
-        self.tlcdTypeLbl = QLabel('Model de TLCD', self)
-        self.tlcdTypeCbox = QComboBox(self)
-        self.tlcdTypeCbox.addItem('Nenhum')
-        self.tlcdTypeCbox.addItem('TLCD Simples')
-        self.tlcdTypeCbox.currentIndexChanged.connect(self.change_option)
-        self.confirmButton = QPushButton('Confirmar TLCD', self)
-        self.confirmButton.clicked.connect(self.add_tlcd)
-
-        # No TLCD
-        self.noTLCD = QWidget()
-        self.noTLCD.lbl = QLabel('Não é necessário entrar com nenhum dado.')
-        self.noTLCD.grid = QGridLayout()
-        self.noTLCD.setLayout(self.noTLCD.grid)
-        self.noTLCD.grid.addWidget(self.noTLCD.lbl, 1, 1)
-
-        # Simple TLCD
-        self.simpleTLCD = QWidget()
-
-        self.simpleTLCD.lb1 = QLabel('Diâmetro: (cm)', self)
-        self.simpleTLCD.lb2 = QLabel('Largura: (m)', self)
-        self.simpleTLCD.lb3 = QLabel('Altura da lâmina: (cm)', self)
-
-        self.simpleTLCD.le1 = QLineEdit(self)
-        self.simpleTLCD.le1.setPlaceholderText('30')
-
-        self.simpleTLCD.le2 = QLineEdit(self)
-        self.simpleTLCD.le2.setPlaceholderText('10')
-
-        self.simpleTLCD.le3 = QLineEdit(self)
-        self.simpleTLCD.le3.setPlaceholderText('100')
-
-        self.simpleTLCD.grid = QGridLayout()
-        self.simpleTLCD.setLayout(self.simpleTLCD.grid)
-        self.simpleTLCD.grid.addWidget(self.simpleTLCD.lb1, 1, 1)
-        self.simpleTLCD.grid.addWidget(self.simpleTLCD.le1, 1, 2)
-        self.simpleTLCD.grid.addWidget(self.simpleTLCD.lb2, 3, 1)
-        self.simpleTLCD.grid.addWidget(self.simpleTLCD.le2, 3, 2)
-        self.simpleTLCD.grid.addWidget(self.simpleTLCD.lb3, 2, 1)
-        self.simpleTLCD.grid.addWidget(self.simpleTLCD.le3, 2, 2)
-
-        # Stacked Widget
-        self.stackedWidget = QStackedWidget(self)
-        # self.stackedWidget.setSizePolicy(size)
-        self.stackedWidget.addWidget(self.noTLCD)
-        self.stackedWidget.addWidget(self.simpleTLCD)
-        self.stackedWidget.setCurrentWidget(self.noTLCD)
-
-        self.tlcdCanvas = TLCDCanvas(self)
-        # self.tlcdCanvas.setSizePolicy(size)
-
-        self.form = QGridLayout()
-        self.form.addWidget(self.tlcdTypeLbl, 1, 1)
-        self.form.addWidget(self.tlcdTypeCbox, 1, 2)
-        self.form.addWidget(self.stackedWidget, 2, 1, 1, 2)
-        self.form.addWidget(self.confirmButton, 3, 1, 1, 2)
-
-        self.grid = QGridLayout()
-        self.grid.addLayout(self.form, 1, 1)
-        self.grid.addWidget(self.tlcdCanvas, 1, 2)
-        self.setLayout(self.grid)
-
-    def change_option(self):
-        tlcdType = get_text(self.tlcdTypeCbox)
-        if tlcdType == 'Nenhum':
-            self.stackedWidget.setCurrentWidget(self.noTLCD)
-        elif tlcdType == 'TLCD Simples':
-            self.stackedWidget.setCurrentWidget(self.simpleTLCD)
+    # TLCD Methods
+    def change_tlcd_option(self):
+        tlcdType = get_text(self.tlcdModelComboBox)
+        if tlcdType == 'None':
+            self.tlcdStackedWidget.setCurrentIndex(0)
+        elif tlcdType == 'Basic TLCD':
+            self.tlcdStackedWidget.setCurrentIndex(1)
 
     def add_tlcd(self):
         inputData.tlcd = None
-        tlcdType = get_text(self.tlcdTypeCbox)
+        tlcdType = get_text(self.tlcdModelComboBox)
 
-        if tlcdType == 'TLCD Simples':
-            diameter = float(get_text(self.simpleTLCD.le1)) / 100  # float (cm -> m)
-            width = float(get_text(self.simpleTLCD.le2))  # float (m)
-            waterHeight = float(get_text(self.simpleTLCD.le3)) / 100  # float (cm -> m)
+        if tlcdType == 'Basic TLCD':
+            diameter = float(get_text(self.diameterSimpleTlcdLineEdit)) / 100  # float (cm -> m)
+            width = float(get_text(self.widthSimpleTlcdLineEdit)) / 100  # float (cm -> m)
+            waterHeight = float(get_text(self.waterLevelSimpleTlcdLineEdit)) / 100  # float (cm -> m)
             tlcd = TLCD(tlcdType, diameter, width, waterHeight, configurations=inputData.configurations)
             inputData.tlcd = tlcd
-            self.tlcdCanvas.painter(tlcd)
+            self.tlcdWidget.tlcdCanvas.painter(inputData.tlcd)
         else:
-            self.tlcdCanvas.painter(None)
+            self.tlcdWidget.tlcdCanvas.painter(None)
 
+    # Excitation Methods
+    def import_excitation(self):
+        fileName = QFileDialog.getOpenFileName(self, 'Load File', './save/Excitations', filter="Text File (*.txt)")[0]
+        self.excitationFileLineEdit.setText(fileName)
 
-class ExcitationTab(QWidget):
-    def __init__(self, parent):
-        super(ExcitationTab, self).__init__(parent)
+    def generate_excitation(self):
+        pass
 
-        # General Widgets
-        self.type_excit_lbl = QLabel('Tipo de Excitação', self)
-        self.type_excit_cbox = QComboBox(self)
-        self.type_excit_cbox.addItem('Seno')
-        self.type_excit_cbox.addItem('Genérico')
-        self.type_excit_cbox.currentIndexChanged.connect(self.type_change)
-        self.excit_button = QPushButton('Confirmar Excitação', self)
-        self.excit_button.clicked.connect(self.add_excitation)
+    def excitation_type_change(self):
+        excitationType = get_text(self.excitationTypeComboBox)
 
-        # Sine Excitation
-        self.sineExcitation = QWidget()
-        self.sineExcitation.grid = QGridLayout()
-        self.sineExcitation.setLayout(self.sineExcitation.grid)
+        if excitationType == 'Sine Wave':
+            self.excitationStackedWidget.setCurrentIndex(0)
+        elif excitationType == 'General Excitation':
+            self.excitationStackedWidget.setCurrentIndex(1)
 
-        self.sineExcitation.amplitude_sine_lbl = QLabel('Amplitude: (m/s²)', self)
-        self.sineExcitation.frequency_sine_lbl = QLabel('Frequência: (rad/s)', self)
-        self.sineExcitation.duration_exc_sine_lbl = QLabel('Duração da Excitação: (s)', self)
-        self.sineExcitation.duration_anl_sine_lbl = QLabel('Tempo de Análise: (s)', self)
-        self.sineExcitation.amplitude_sine_le = QLineEdit(self)
-        self.sineExcitation.amplitude_sine_le.setPlaceholderText('5')
-        self.sineExcitation.frequency_sine_le = QLineEdit(self)
-        self.sineExcitation.frequency_sine_le.setPlaceholderText('30')
-        self.sineExcitation.frequency_sine_cbox = QCheckBox('Usar relação de frequências', self)
-        self.sineExcitation.frequency_sine_cbox.stateChanged.connect(self.lb2_change)
-        self.sineExcitation.frequency_sine_cbox.setChecked(True)
-        self.sineExcitation.duration_exc_le = QLineEdit(self)
-        self.sineExcitation.duration_exc_le.setPlaceholderText('3')
-        self.sineExcitation.duation_anl_sine_le = QLineEdit(self)
-        self.sineExcitation.duation_anl_sine_le.setPlaceholderText('5')
-
-        self.sineExcitation.grid.addWidget(self.sineExcitation.amplitude_sine_lbl, 1, 1)
-        self.sineExcitation.grid.addWidget(self.sineExcitation.frequency_sine_lbl, 2, 1)
-        self.sineExcitation.grid.addWidget(self.sineExcitation.duration_exc_sine_lbl, 3, 1)
-        self.sineExcitation.grid.addWidget(self.sineExcitation.duration_anl_sine_lbl, 4, 1)
-        self.sineExcitation.grid.addWidget(self.sineExcitation.amplitude_sine_le, 1, 2)
-        self.sineExcitation.grid.addWidget(self.sineExcitation.frequency_sine_le, 2, 2)
-        self.sineExcitation.grid.addWidget(self.sineExcitation.duration_exc_le, 3, 2)
-        self.sineExcitation.grid.addWidget(self.sineExcitation.duation_anl_sine_le, 4, 2)
-        self.sineExcitation.grid.addWidget(self.sineExcitation.frequency_sine_cbox, 2, 3)
-
-        # General Excitation
-        self.generalExcitation = QWidget()
-        self.generalExcitation.grid = QGridLayout()
-        self.generalExcitation.setLayout(self.generalExcitation.grid)
-
-        self.generalExcitation.loadLabel = QLabel('Arquivo: ', self)
-        self.generalExcitation.loadLineEdit = QLineEdit(self)
-        self.generalExcitation.loadButton = QPushButton('Importar carregamento', self)
-        self.generalExcitation.loadButton.clicked.connect(self.import_loading)
-        self.generalExcitation.generateButton = QPushButton('Gerar carregamento', self)
-
-        self.generalExcitation.grid.addWidget(self.generalExcitation.loadLabel, 1, 1)
-        self.generalExcitation.grid.addWidget(self.generalExcitation.loadLineEdit, 1, 2)
-        self.generalExcitation.grid.addWidget(self.generalExcitation.loadButton, 2, 1)
-        self.generalExcitation.grid.addWidget(self.generalExcitation.generateButton, 2, 2)
-
-        # Stacked Widget
-        self.stackedWidget = QStackedWidget()
-        self.stackedWidget.addWidget(self.sineExcitation)
-        self.stackedWidget.addWidget(self.generalExcitation)
-        self.stackedWidget.setCurrentWidget(self.sineExcitation)
-
-        # Plot Canvas
-        self.excitationCanvas = PltCanvas()
-
-        self.form = QGridLayout()
-        self.form.addWidget(self.type_excit_lbl, 1, 1)
-        self.form.addWidget(self.type_excit_cbox, 1, 2)
-        self.form.addWidget(self.stackedWidget, 2, 1, 1, 3)
-        self.form.addWidget(self.excit_button, 3, 1, 1, 3)
-
-        self.grid = QGridLayout()
-        self.grid.addLayout(self.form, 1, 1)
-        self.grid.addWidget(self.excitationCanvas, 1, 2)
-        self.setLayout(self.grid)
-
-    def import_loading(self):
-        fileName = QFileDialog.getOpenFileName(self, 'Abrir arquivo', './save', filter="Arquivo de Texto (*.txt)")
-        self.generalExcitation.loadLineEdit.setText(fileName)
-
-    def type_change(self):
-        type = get_text(self.type_excit_cbox)
-
-        if type == 'Seno':
-            self.stackedWidget.setCurrentWidget(self.sineExcitation)
-        elif type == 'Genérico':
-            self.stackedWidget.setCurrentWidget(self.generalExcitation)
-
-    def lb2_change(self):
-        if self.sineExcitation.frequency_sine_cbox.isChecked():
-            self.sineExcitation.frequency_sine_lbl.setText('Relação de Frequências: (decimal)')
-            self.sineExcitation.frequency_sine_le.setPlaceholderText('0.9')
+    def excitation_frequency_label_change(self):
+        if self.sineFrequencyRatioCheckBox.isChecked():
+            self.sineFrequencyLabel.setText('Frequency Ratio: (decimal)')
+            self.sineFrequencyLineEdit.setPlaceholderText('0.9')
         else:
-            self.sineExcitation.frequency_sine_lbl.setText('Frequência: (rad/s)')
-            self.sineExcitation.frequency_sine_le.setPlaceholderText('30')
+            self.sineFrequencyLabel.setText('Frequency: (rad/s)')
+            self.sineFrequencyLineEdit.setPlaceholderText('30')
 
     def add_excitation(self):
-        exct_type = get_text(self.type_excit_cbox)
+        exct_type = get_text(self.excitationTypeComboBox)
 
-        if exct_type == 'Seno':
-            amplitude = float(get_text(self.sineExcitation.amplitude_sine_le))
-            frequency = float(get_text(self.sineExcitation.frequency_sine_le))
-            relativeFrequency = float(self.sineExcitation.frequency_sine_cbox.isChecked())
-            exctDuration = float(get_text(self.sineExcitation.duration_exc_le))
-            anlyDuration = float(get_text(self.sineExcitation.duation_anl_sine_le))
+        if exct_type == 'Sine Wave':
+            amplitude = float(get_text(self.sineAmplitudeLineEdit))
+            frequency = float(get_text(self.sineFrequencyLineEdit))
+            relativeFrequency = self.sineFrequencyRatioCheckBox.isChecked()
+            exctDuration = float(get_text(self.sineExcitationDurationLineEdit))
+            anlyDuration = float(get_text(self.sineAnalysisDurationLineEdit))
 
-            if relativeFrequency and inputData.stories == {}:
+            if (relativeFrequency == True) and (inputData.stories == {}):
                 icon = QStyle.SP_MessageBoxWarning
                 self.error01 = QMessageBox()
                 self.error01.setText('Para utilizar a opção de frequência relativa é necessário ' +
@@ -1325,7 +883,7 @@ class ExcitationTab(QWidget):
                 self.error01.setWindowTitle('Erro 01')
                 self.error01.setWindowIcon(self.error01.style().standardIcon(icon))
                 self.error01.setIcon(QMessageBox.Warning)
-                self.error01.show()
+                self.error01.exec()
             elif anlyDuration < exctDuration:
                 icon = QStyle.SP_MessageBoxWarning
                 self.error02 = QMessageBox()
@@ -1346,9 +904,9 @@ class ExcitationTab(QWidget):
                 a = amplitude * np.sin(excitation.frequency * tExct)
                 a = np.hstack((a, np.array([0 for i in range(len(tAnly) - len(tExct))])))
 
-                self.excitationCanvas.plot_excitation(tAnly, a)
-        elif exct_type == 'Genérico':
-            fileName = get_text(self.generalExcitation.loadLineEdit)
+                self.excitationWidget.excitationCanvas.plot_excitation(tAnly, a)
+        elif exct_type == 'General Excitation':
+            fileName = get_text(self.excitationFileLineEdit)
             file = open(fileName, 'r')
             unit = file.readline()
             lines = int(file.readline())
@@ -1372,117 +930,112 @@ class ExcitationTab(QWidget):
                                     fileName=fileName)
             inputData.excitation = excitation
 
-            self.excitationCanvas.plot_excitation(inputData.excitation.t_input, inputData.excitation.a_input)
+            self.excitationWidget.excitationCanvas.plot_excitation(inputData.excitation.t_input, inputData.excitation.a_input)
 
+    def excitation_grid_toggle(self):
+        """ Toggles plot grid on and off
 
-class ReportTab(QWidget):
-    def __init__(self, parent):
-        super(ReportTab, self).__init__(parent)
+        :return: None
+        """
+        self.excitationWidget.excitationCanvas.axes.grid(self.excitationWidget.gridChkBox.isChecked())
+        self.excitationWidget.excitationCanvas.draw()
 
-        self.te1 = QTextBrowser(self)
-        self.te1.setText("""Relatório ainda não gerado.
-Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.""")
-        self.te1.setFont(QFont("Times", 14))
+    # Report Methods
+    def generate_report_dynamic_response(self):
+        title = "DynaPy TLCD Analyser - Report\nAnalysis of the System Structure-TLCD Under Single Excitation Case"
 
-        self.grid = QGridLayout()
-        self.grid.addWidget(self.te1, 1, 1)
-        self.setLayout(self.grid)
+        h1_vars = "Input Variables"
 
-    def generate_report_simulation(self):
-        self.title = "DynaPy TLCD Analyser - Relatório\nAnálise do Sistema Estrutura-TLCD Sob Único Caso de Excitação"
+        h2_struct = "Structure"
 
-        self.h1_vars = "Variáveis de Entrada"
+        struct_num = "Number of Stories: {}".format(len(inputData.stories))
 
-        self.h2_struct = "Estrutura"
-
-        self.struct_num = "Número de pavimentos: {}".format(len(inputData.stories))
-
-        self.storiesTable = []
+        storiesTable = []
 
         for i in range(1, len(inputData.stories) + 1):
-            self.storiesTable.append([i,
+            storiesTable.append([i,
                                       inputData.stories[i].mass / 1000,
                                       inputData.stories[i].height,
                                       inputData.stories[i].width * 100,
                                       inputData.stories[i].depth * 100,
                                       inputData.stories[i].E / 1e9,
-                                      inputData.stories[i].vinculum])
+                                      inputData.stories[i].support])
 
-        self.storiesData = ''
+        storiesData = ''
 
-        for i in self.storiesTable:
-            self.storiesData += """Pavimento {}:
-Massa: {} ton
-Altura: {} m
-Largura dos pilares: {} cm
-Profundidade dos pilares: {} cm
-Módulo de elasticidade dos pilares: {} GPa
+        for i in storiesTable:
+            storiesData += """Story {}:
+Mass: {} ton
+Height: {} m
+Column width: {} cm
+Column depth: {} cm
+Column Elasticity Module: {} GPa
 
 """.format(i[0], i[1], i[2], i[3], i[4], i[5])
 
-        self.h2_TLCD = 'TLCD'
+        h2_TLCD = 'TLCD'
 
         if inputData.tlcd is None:
-            self.tlcdData = """Tipo: Nenhum"""
-        elif inputData.tlcd.type == 'TLCD Simples':
-            self.tlcdData = """Tipo: {}
-Diâmetro: {} cm
-Altura da lamina d'água: {} cm
-Largura: {} m""".format(inputData.tlcd.type, inputData.tlcd.diameter * 100,
+            tlcdData = """Model: None"""
+        elif inputData.tlcd.type == 'Basic TLCD':
+            tlcdData = """Model: {}
+Diameter: {} cm
+Water level: {} cm
+Width: {} m""".format(inputData.tlcd.type, inputData.tlcd.diameter * 100,
                         inputData.tlcd.waterHeight * 100, inputData.tlcd.width)
 
-        self.h2_exct = 'Excitação'
+        h2_exct = 'Excitation'
 
-        if inputData.excitation.type == 'Seno':
+        if inputData.excitation.type == 'Sine Wave':
             if inputData.excitation.relativeFrequency:
-                self.freq = '{} * (frequência natural do último pavimento)'.format(
+                freq = '{} * (last story natural frequency)'.format(
                     inputData.excitation.frequencyInput) + ' = {:.2f} rad/s'.format(inputData.excitation.frequency)
             else:
-                self.freq = '{} rad/s'.format(inputData.excitation.frequency)
-            self.exctData = """Tipo de excitação: {}
+                freq = '{} rad/s'.format(inputData.excitation.frequency)
+            exctData = """Excitation type: {}
 Amplitude: {} m/s²
-Frequência: {}
-Duração da excitação: {} s
-Tempo de análise: {} s""".format(inputData.excitation.type, inputData.excitation.amplitude, self.freq,
+Frequency: {}
+Excitation duration: {} s
+Analysis duration: {} s""".format(inputData.excitation.type, inputData.excitation.amplitude, freq,
                                  inputData.excitation.exctDuration, inputData.excitation.anlyDuration)
-        elif inputData.excitation.type == 'Genérico':
-            self.exctData = """Tipo de excitação: {}
-Arquivo fonte: {}""".format(inputData.excitation.type, inputData.excitation.fileName)
+        elif inputData.excitation.type == 'General Excitation':
+            exctData = """Excitation type: {}
+File: {}""".format(inputData.excitation.type, inputData.excitation.fileName)
 
-        self.h2_config = 'Configurações'
+        h2_config = 'Configurations'
 
-        self.configData = """Método: {}
-Passo de tempo: {} s
-Deslocamento inicial: {} m
-Velocidade inicial: {} m
-Taxa de amortecimento da estrutura: {}
-Massa específica do líquido: {} (kg/m3)
-Viscosidade cinemática: {} (m²/s)
-Aceleração da gravidade: {} (m/s²)""".format(inputData.configurations.method, inputData.configurations.timeStep,
+        configData = """Method: {}
+Time step: {} s
+Initial displacement: {} m
+Initial velocity: {} m
+Structure damping ratio: {}
+Fluid specific mass: {} (kg/m3)
+Kinetic viscosity: {} (m²/s)
+Gravity acceleration: {} (m/s²)""".format(inputData.configurations.method, inputData.configurations.timeStep,
                                              inputData.configurations.initialDisplacement,
                                              inputData.configurations.initialVelocity,
-                                             inputData.configurations.relativeDampingRatio,
+                                             inputData.configurations.dampingRatio,
                                              inputData.configurations.liquidSpecificMass,
                                              inputData.configurations.kineticViscosity,
                                              inputData.configurations.gravity)
 
-        self.h1_matrices = 'Equação de Movimento'
+        h1_matrices = 'Movement Equation'
 
-        self.equation = '[M]{a} + [C]{v} + [k]{x} = {F(t)}'
+        equation = '[M]{a} + [C]{v} + [k]{x} = {F(t)}'
 
-        self.h2_M = 'Matriz de Massa ([M] em kg)'
+        h2_M = 'Mass Matrix ([M] em kg)'
 
-        self.h2_C = 'Matriz de Amortecimento ([C] em kg/s)'
+        h2_C = 'Damping Matrix ([C] em kg/s)'
 
-        self.h2_K = 'Matriz de Rigidez ([K] em N/m)'
+        h2_K = 'Stiffness Matrix ([K] em N/m)'
 
-        self.h2_F = 'Vetor de Força em função do Tempo ({F(t)} em N)'
+        h2_F = 'Force Vector Over Time ({F(t)} em N)'
 
-        self.h1_dynResp = 'Resposta Dinâmica'
+        h1_dynResp = 'Dynamic Response'
 
-        self.dmf = 'Fator de amplificação dinâmica (DMF): {}'.format(outputData.DMF)
+        dmf = 'Dynamic Magnification Ratio (DMF): {}'.format(outputData.DMF)
 
-        self.plot = "Vide gráficos na aba Resposta Dinâmica"
+        plot = "See plots in Dynamic Response Tab"
 
         # In-app report assembly
         report = """{}
@@ -1527,94 +1080,30 @@ Aceleração da gravidade: {} (m/s²)""".format(inputData.configurations.method,
 {}
 {}
 
-        """.format(self.title, self.h1_vars,
-                   self.h2_struct, self.struct_num, self.storiesData,
-                   self.h2_TLCD, self.tlcdData,
-                   self.h2_exct, self.exctData,
-                   self.h2_config, self.configData,
-                   self.h1_matrices, self.equation,
-                   self.h2_M, outputData.massMatrix,
-                   self.h2_C, outputData.dampingMatrix,
-                   self.h2_K, outputData.stiffnessMatrix,
-                   self.h2_F, outputData.forceMatrix,
-                   self.h1_dynResp, self.dmf, self.plot)
+        """.format(title, h1_vars,
+                   h2_struct, struct_num, storiesData,
+                   h2_TLCD, tlcdData,
+                   h2_exct, exctData,
+                   h2_config, configData,
+                   h1_matrices, equation,
+                   h2_M, outputData.massMatrix,
+                   h2_C, outputData.dampingMatrix,
+                   h2_K, outputData.stiffnessMatrix,
+                   h2_F, outputData.forceMatrix,
+                   h1_dynResp, dmf, plot)
 
-        self.te1.setText(report)
+        self.reportTextBrowser.setText(report)
 
-
-class DynRespTab(QWidget):
-    def __init__(self, parent):
-        super(DynRespTab, self).__init__(parent)
-
-        self.label1 = QLabel('Lista geral de graus de liberdade', self)
-        self.label2 = QLabel('Lista de graus de liberdade a serem plotados', self)
-        self.list1 = QListWidget(self)
-        self.list2 = QListWidget(self)
-        self.addButton = QPushButton('+', self)
-        self.addButton.clicked.connect(self.add_list2_item)
-        self.removeButton = QPushButton('-', self)
-        self.removeButton.clicked.connect(self.remove_list2_item)
-        self.buttonsSpacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
-
-        self.midButtonsLayout = QVBoxLayout()
-        self.midButtonsLayout.addWidget(self.addButton)
-        self.midButtonsLayout.addWidget(self.removeButton)
-        self.midButtonsLayout.addSpacerItem(self.buttonsSpacer)
-
-        self.formMid = QGridLayout()
-        self.formMid.addWidget(self.label1, 1, 1)
-        self.formMid.addWidget(self.label2, 1, 3)
-        self.formMid.addWidget(self.list1, 2, 1)
-        self.formMid.addLayout(self.midButtonsLayout, 2, 2)
-        self.formMid.addWidget(self.list2, 2, 3)
-
-        self.plotTypeLabel = QLabel('Tipo de gráfico:', self)
-
-        self.plotTypeCombox = QComboBox(self)
-        self.plotTypeCombox.addItem('Deslocamento')
-        self.plotTypeCombox.addItem('Velocidade')
-        self.plotTypeCombox.addItem('Aceleração')
-
-        self.plotButton = QPushButton('Plotar', self)
-        self.plotButton.clicked.connect(self.plot_dyn_resp)
-        self.infSpacer = QSpacerItem(20, 40, QSizePolicy.Expanding, QSizePolicy.Minimum)
-
-        self.formInf = QHBoxLayout()
-        self.formInf.addWidget(self.plotTypeLabel)
-        self.formInf.addWidget(self.plotTypeCombox)
-        self.formInf.addSpacerItem(self.infSpacer)
-        self.formInf.addWidget(self.plotButton)
-
-        self.form = QVBoxLayout()
-        self.form.addLayout(self.formMid, 1)
-        self.form.addLayout(self.formInf, 1)
-
-        self.dynRespCanvas = PltCanvas()
-        self.mpl_toolbar = NavigationToolbar(self.dynRespCanvas, self)
-        self.gridLabel = QLabel('Mostrar Grade', self)
-        self.gridChkBox = QCheckBox(self)
-        self.gridChkBox.stateChanged.connect(self.grid_change)
-
-        self.canvas = QGridLayout()
-        self.canvas.addWidget(self.dynRespCanvas, 1, 1, 1, 3)
-        self.canvas.addWidget(self.gridLabel, 2, 1)
-        self.canvas.addWidget(self.gridChkBox, 2, 2)
-        self.canvas.addWidget(self.mpl_toolbar, 2, 3)
-
-        self.grid = QHBoxLayout()
-        self.grid.addLayout(self.form, 8)
-        self.grid.addLayout(self.canvas, 10)
-        self.setLayout(self.grid)
-
-    def grid_change(self):
+    # Dynamic Response Methods
+    def dynamic_response_grid_toggle(self):
         """ Toggles plot grid on and off
 
         :return: None
         """
-        self.dynRespCanvas.axes.grid(self.gridChkBox.isChecked())
-        self.dynRespCanvas.draw()
+        self.dynRespWidget.dynRespCanvas.axes.grid(self.dynRespWidget.gridChkBox.isChecked())
+        self.dynRespWidget.dynRespCanvas.draw()
 
-    def add_list1_items(self):
+    def dynamic_response_add_list1_items(self):
         """ Adds all stories and the TLCD to list 1. Takes from inputData.
 
         :return: None
@@ -1622,12 +1111,12 @@ class DynRespTab(QWidget):
         self.list1.clear()
 
         for i in inputData.stories.keys():
-            self.list1.addItem('Pavimento {}'.format(i))
+            self.list1.addItem('Story {}'.format(i))
 
         if inputData.tlcd is not None:
             self.list1.addItem('TLCD')
 
-    def add_list2_item(self):
+    def dynamic_response_add_list2_item(self):
         """ Adds the item selected on list 1 to list 2 without making duplicates. If successfull, advances one row on
         list 1 and sorts list 2 alphabetically.
 
@@ -1646,7 +1135,7 @@ class DynRespTab(QWidget):
             self.list1.setCurrentRow(row + 1)
         self.list2.sortItems(Qt.AscendingOrder)
 
-    def remove_list2_item(self):
+    def dynamic_response_remove_list2_item(self):
         """ Removes the selected item from list 2
 
         :return: None
@@ -1660,7 +1149,7 @@ class DynRespTab(QWidget):
 
         :return:
         """
-        plotType = get_text(self.plotTypeCombox)
+        plotType = get_text(self.plotTypeComboBox)
         plotList = []
 
         for i in range(self.list1.count()):
@@ -1671,72 +1160,21 @@ class DynRespTab(QWidget):
             else:
                 plotList.append((get_text(self.list1), True))
 
-        if plotType == 'Deslocamento':
-            self.dynRespCanvas.plot_displacement(outputData.dynamicResponse, plotList)
-        elif plotType == 'Velocidade':
-            self.dynRespCanvas.plot_velocity(outputData.dynamicResponse, plotList)
-        elif plotType == 'Aceleração':
-            self.dynRespCanvas.plot_acceleration(outputData.dynamicResponse, plotList)
+        if plotType == 'Displacement':
+            self.dynRespWidget.dynRespCanvas.plot_displacement(outputData.dynamicResponse, plotList)
+        elif plotType == 'Velocity':
+            self.dynRespWidget.dynRespCanvas.plot_velocity(outputData.dynamicResponse, plotList)
+        elif plotType == 'Acceleration':
+            self.dynRespWidget.dynRespCanvas.plot_acceleration(outputData.dynamicResponse, plotList)
 
-
-class DMFTab(QWidget):
-    def __init__(self, parent):
-        super(DMFTab, self).__init__(parent)
-
-        self.dmfCanvas = PltCanvas()
-        self.mpl_toolbar = NavigationToolbar(self.dmfCanvas, self)
-        self.gridLabel = QLabel('Mostrar Grade', self)
-        self.gridChkBox = QCheckBox(self)
-        self.gridChkBox.stateChanged.connect(self.grid_change)
-
-        self.canvas = QGridLayout()
-        self.canvas.addWidget(self.dmfCanvas, 1, 1, 1, 3)
-        self.canvas.addWidget(self.gridLabel, 2, 1)
-        self.canvas.addWidget(self.gridChkBox, 2, 2)
-        self.canvas.addWidget(self.mpl_toolbar, 2, 3)
-
-        self.holdLabel = QLabel(self)
-        self.holdCheckBox = QCheckBox('Manter curvas do gráfico: ', self)
-        self.holdCheckBox.stateChanged.connect(self.dmfCanvas.axes.hold)
-        self.clearButton = QPushButton('Limpar o gráfico', self)
-        self.clearButton.clicked.connect(self.dmfCanvas.reset_canvas)
-        self.progressBar = QProgressBar(self)
-        self.progressBar.setValue(0)
-
-        self.form = QGridLayout()
-        self.form.addWidget(self.progressBar, 1, 1)
-        self.form.addWidget(self.holdLabel, 1, 2)
-        self.form.addWidget(self.holdCheckBox, 1, 3)
-        self.form.addWidget(self.clearButton, 3, 1, 1, 3)
-
-        self.grid = QGridLayout()
-        self.grid.addLayout(self.form, 1, 1)
-        self.grid.addLayout(self.canvas, 1, 2)
-        self.setLayout(self.grid)
-
-    def grid_change(self):
+    # DMF Methods
+    def dmf_grid_toggle(self):
         """ Toggles plot grid on and off
 
         :return: None
         """
-        self.dmfCanvas.axes.grid(self.gridChkBox.isChecked())
-        self.dmfCanvas.draw()
-
-
-class AnimationTab(QWidget):
-    def __init__(self, parent):
-        super(AnimationTab, self).__init__(parent)
-        self.le1 = QLineEdit(self)
-
-        self.animationCanvas = AnimationCanvas(self)
-
-        self.form = QGridLayout()
-        self.form.addWidget(self.le1, 1, 1)
-
-        self.grid = QGridLayout()
-        self.grid.addLayout(self.form, 1, 1)
-        self.grid.addWidget(self.animationCanvas, 1, 2)
-        self.setLayout(self.grid)
+        self.dmfWidget.dmfCanvas.axes.grid(self.dmfWidget.gridChkBox.isChecked())
+        self.dmfWidget.dmfCanvas.draw()
 
 
 def main():
@@ -1744,9 +1182,11 @@ def main():
     GUI = MainWindow()
     if debugOption:
         # DEBUG OPTION - LOAD IMMEDIATELY
-        # fileName = './save/Verificações/Caso 1 (1 andar sem amort).dpfl'
-        fileName = './save/Verificações/Caso 2 (Tedesco 12.7).dpfl'
+        # fileName = './save/Validations/Caso 1 (1 andar sem amort).dpfl'
+        fileName = './save/Validations/Caso 1 (1 andar sem amort).dpfl'
         GUI.open_file(fileName=fileName)
+        # GUI.add_story()
+        # GUI.add_excitation()
         GUI.run_simulation()
     sys.exit(app.exec_())
 
@@ -1759,10 +1199,10 @@ def compare_anal_sol(case):
         """
         m = inputData.stories[1].mass
         # c = 0
-        k = 24 * (25e9) * (0.35 * 0.35 ** 3 / 12) / (3 ** 3)  # 24EI/L^3 (engastado-engastado)
+        k = 24 * 25e9 * (0.35 * 0.35 ** 3 / 12) / (3 ** 3)  # 24EI/L^3 (engastado-engastado)
         # print(m, c, k)
         omega_n = np.sqrt(k / m)
-        ksi = inputData.configurations.relativeDampingRatio  # c/(2*m*omega_n)
+        ksi = inputData.configurations.dampingRatio  # c/(2*m*omega_n)
         omega_d = omega_n * np.sqrt(1 - ksi ** 2)
 
         amplitude = inputData.excitation.amplitude
@@ -1771,9 +1211,9 @@ def compare_anal_sol(case):
         omega = frequencyInput * omega_n  # ressonância
 
         C = (p0 / k) * (
-        (1 - (omega / omega_n) ** 2) / ((1 - (omega / omega_n) ** 2) ** 2 + (2 * ksi * (omega / omega_n)) ** 2))
+            (1 - (omega / omega_n) ** 2) / ((1 - (omega / omega_n) ** 2) ** 2 + (2 * ksi * (omega / omega_n)) ** 2))
         D = (p0 / k) * (
-        (-2 * ksi * (omega / omega_n)) / ((1 - (omega / omega_n) ** 2) ** 2 + (2 * ksi * (omega / omega_n)) ** 2))
+            (-2 * ksi * (omega / omega_n)) / ((1 - (omega / omega_n) ** 2) ** 2 + (2 * ksi * (omega / omega_n)) ** 2))
 
         x0 = inputData.configurations.initialDisplacement
         x10 = inputData.configurations.initialVelocity
@@ -1801,7 +1241,7 @@ def compare_anal_sol(case):
         # Calculate the damping ratio of each story
         ksi = [0.02, 0.03, 0.044, 0.052]
         for i, j in zip(inputData.stories.values(), ksi):
-            i.calc_damping_ratio(j)
+            i.calc_damping_coefficient(j)
 
         mass = assemble_mass_matrix(inputData.stories, inputData.tlcd)
         damping = assemble_damping_matrix(inputData.stories, inputData.tlcd)

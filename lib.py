@@ -4,14 +4,14 @@ def get_text(obj):
     :param obj: Any text yielding widget
     :return: Widget's text (str)
     """
-    if str(type(obj)) == "<class 'PyQt4.QtGui.QLineEdit'>":
+    if str(type(obj)) == "<class 'PyQt5.QtWidgets.QLineEdit'>":
         if obj.text() == '':
             return obj.placeholderText()
         else:
             return obj.text()
-    elif str(type(obj)) == "<class 'PyQt4.QtGui.QTextEdit'>":
+    elif str(type(obj)) == "<class 'PyQt5.QtWidgets.QTextEdit'>":
         return obj.toPlainText()
-    elif str(type(obj)) == "<class 'PyQt4.QtGui.QListWidget'>":
+    elif str(type(obj)) == "<class 'PyQt5.QtWidgets.QListWidget'>":
         return obj.currentItem().text()
-    elif str(type(obj)) == "<class 'PyQt4.QtGui.QComboBox'>":
+    elif str(type(obj)) == "<class 'PyQt5.QtWidgets.QComboBox'>":
         return obj.currentText()

@@ -3,7 +3,7 @@ from DynaPy.TLCD.GUI.DpConfigurations import Configurations
 
 
 class TLCD(object):
-    def __init__(self, tlcdType='TLCD Simples', diameter=0.6, width=20., waterHeight=1.,
+    def __init__(self, tlcdType='Basic TLCD', diameter=0.6, width=20., waterHeight=1.,
                  configurations=Configurations(), **kwargs):
         """
         :param tlcdType: str - Type of TLCD to be used on the calculation of TLCD parameters
@@ -25,7 +25,7 @@ class TLCD(object):
         for (i, j) in kwargs.items():
             exec('self.{} = {}'.format(i, j))
 
-        if self.type == 'TLCD Simples':
+        if self.type == 'Basic TLCD':
             self.length = self.width + 2 * self.waterHeight
             self.mass = pi * ((self.diameter / 2) ** 2) * self.length * self.liquidSpecificMass
             self.dampingRatio = 8 * pi * self.length * self.kineticViscosity * self.liquidSpecificMass

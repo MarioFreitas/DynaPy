@@ -2,7 +2,7 @@ from numpy import sqrt
 
 
 class Excitation(object):
-    def __init__(self, exctType='Seno', amplitude=5., frequency=20.,
+    def __init__(self, exctType='Sine Wave', amplitude=5., frequency=20.,
                  relativeFrequency=True, exctDuration=3., anlyDuration=5.,
                  structure=None, tlcd=None, t=None, a=None, fileName=None, **kwargs):
         """
@@ -20,7 +20,7 @@ class Excitation(object):
         self.type = exctType
         self.structure = structure
         self.tlcd = tlcd
-        if self.type == 'Seno':
+        if self.type == 'Sine Wave':
             self.amplitude = amplitude
             self.frequency = frequency
             self.frequencyInput = frequency
@@ -30,7 +30,7 @@ class Excitation(object):
 
             self.calc_frequency()
 
-        elif self.type == 'Genérico':
+        elif self.type == 'General Excitation':
             self.t_input = t
             self.a_input = a
             self.exctDuration = t[-1]

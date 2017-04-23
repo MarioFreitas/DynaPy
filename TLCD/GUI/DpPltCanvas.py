@@ -1,5 +1,5 @@
-from PyQt4.QtGui import QSizePolicy
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from PyQt5.QtWidgets import QSizePolicy
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from itertools import cycle
 
@@ -10,7 +10,6 @@ class PltCanvas(FigureCanvas):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = self.fig.add_subplot(111)
-        self.axes.hold(False)  # Clears the plot whenever plot() is called again
 
         FigureCanvas.__init__(self, self.fig)
         self.setParent(parent)
@@ -21,9 +20,7 @@ class PltCanvas(FigureCanvas):
         FigureCanvas.updateGeometry(self)
 
     def plot_displacement(self, dynamicResponse, plotList):
-        self.axes.hold(False)
-        self.axes.plot([], [])
-        self.axes.hold(True)
+        self.axes.cla()
 
         cycol = cycle('brgcmk')
 
@@ -32,7 +29,7 @@ class PltCanvas(FigureCanvas):
         for i, j in plotList:
             if j:
                 if i != 'TLCD':
-                    n = int(i.split('Pavimento ')[1]) - 1
+                    n = int(i.split('Story ')[1]) - 1
                     x = dynamicResponse.x[n, :].A1
                     self.axes.plot(t, x, c=next(cycol), label=i)
                 else:
@@ -41,7 +38,7 @@ class PltCanvas(FigureCanvas):
                     self.axes.plot(t, x, c=next(cycol), label='TLCD')
 
         self.axes.legend(fontsize=11)
-        self.axes.set_title('Deslocamento em Função do Tempo')
+        self.axes.set_title('Displacement Vs. Time')
 
         self.axes.set_xlabel('t (s)')
         self.axes.set_ylabel('x (m)')
@@ -60,7 +57,7 @@ class PltCanvas(FigureCanvas):
         for i, j in plotList:
             if j:
                 if i != 'TLCD':
-                    n = int(i.split('Pavimento ')[1]) - 1
+                    n = int(i.split('Story ')[1]) - 1
                     v = dynamicResponse.v[n, :].A1
                     self.axes.plot(t, v, c=next(cycol), label=i)
                 else:
@@ -69,7 +66,7 @@ class PltCanvas(FigureCanvas):
                     self.axes.plot(t, v, c=next(cycol), label='TLCD')
 
         self.axes.legend(fontsize=11)
-        self.axes.set_title('Velocidade em Função do Tempo')
+        self.axes.set_title('Velocity Vs. Time')
 
         self.axes.set_xlabel('t (s)')
         self.axes.set_ylabel('v (m/s)')
@@ -88,7 +85,7 @@ class PltCanvas(FigureCanvas):
         for i, j in plotList:
             if j:
                 if i != 'TLCD':
-                    n = int(i.split('Pavimento ')[1]) - 1
+                    n = int(i.split('Story ')[1]) - 1
                     a = dynamicResponse.a[n, :].A1
                     self.axes.plot(t, a, c=next(cycol), label=i)
                 else:
@@ -97,7 +94,7 @@ class PltCanvas(FigureCanvas):
                     self.axes.plot(t, a, c=next(cycol), label='TLCD')
 
         self.axes.legend(fontsize=11)
-        self.axes.set_title('Aceleração em Função do Tempo')
+        self.axes.set_title('Acceleration Vs. Time')
 
         self.axes.set_xlabel('t (s)')
         self.axes.set_ylabel(r'a (m/$s^2$)')
@@ -105,6 +102,7 @@ class PltCanvas(FigureCanvas):
         self.draw()
 
     def plot_excitation(self, t, a):
+        self.axes.cla()
         self.axes.plot(t, a)
         self.axes.set_xlabel('t (s)')
         self.axes.set_ylabel(r'a (m/$s^2$)')
@@ -112,11 +110,12 @@ class PltCanvas(FigureCanvas):
 
     def plot_dmf(self, relativeFrequencies, dmf):
         self.axes.plot(relativeFrequencies, dmf)
-        self.axes.set_xlabel('Frequência Relativa')
+        self.axes.set_xlabel('Relative Frequency')
         self.axes.set_ylabel('DMF')
         self.draw()
 
     def reset_canvas(self):
-        self.axes.hold(False)
-        self.axes.plot([], [])
+        self.axes.cla()
+        # self.axes.hold(False)
+        # self.axes.plot([], [])
         self.draw()

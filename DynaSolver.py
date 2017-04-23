@@ -28,7 +28,7 @@ class ODESolver(object):
         self.force = force
         self.configurations = configurations
 
-        if configurations.method == 'Método das Diferenças Finitas':
+        if configurations.method == 'Finite Differences Method':
             self.fdm_solver()
 
     def unpack(self):
@@ -150,7 +150,7 @@ def assemble_damping_matrix(stories, tlcd):
         C = np.mat(np.zeros((n, n)))
 
         for i in range(n):
-            C[i, i] = stories[i + 1].dampingRatio
+            C[i, i] = stories[i + 1].dampingCoefficient
     else:
         n = len(stories)
 
@@ -223,7 +223,7 @@ def assemble_force_matrix(excitation, mass, configurations):
     for i in range(numberOfStories - 1):
         force = np.concatenate((force, 0. * totalTimeArray), 0)
 
-    if excitation.type == 'Seno':
+    if excitation.type == 'Sine Wave':
         # TODO check assumptions for excitation of multiple stories
         for i in range(force.shape[0]):
             storyMass = mass[i, i]
@@ -236,7 +236,7 @@ def assemble_force_matrix(excitation, mass, configurations):
         else:
             force = np.concatenate((force, 0. * force[0, :]), 0)
             return force
-    elif excitation.type == 'Genérico':
+    elif excitation.type == 'General Excitation':
         a = []
         t0 = 0
         time = [round(t/step, 0)*step for t in list(totalTimeArray.A1)]
@@ -252,7 +252,7 @@ def assemble_force_matrix(excitation, mass, configurations):
                 at = ((a1 - a0) / (t1 - t0)) * (t - t0) + a0
                 a.append(at)
 
-        print(list(zip(list(totalTimeArray.A1), a)))
+        # print(list(zip(list(totalTimeArray.A1), a)))
         a = np.array(a)
         for i in range(force.shape[0]):
             storyMass = mass[i, i]

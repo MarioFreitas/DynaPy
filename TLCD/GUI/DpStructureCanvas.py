@@ -1,5 +1,6 @@
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 
 
 class StructureCanvas(QGraphicsView):
@@ -80,19 +81,19 @@ class StructureCanvas(QGraphicsView):
             storyE.setTextWidth(storyE.boundingRect().width())
             storyE.setPos(-(storyE.textWidth()+20), -(level+height/2)-65)
 
-            if stories[i].vinculum == 'Engastado-Engastado':
-                vinculum = '(E-E)'
-            elif stories[i].vinculum == 'Engastado-Apoiado':
-                vinculum = '(E-A)'
-            elif stories[i].vinculum == 'Apoiado-Engastado':
-                vinculum = '(A-E)'
-            elif stories[i].vinculum == 'Apoiado-Apoiado':
-                vinculum = '(A-A)'
+            if stories[i].support == 'Fix-Fix':
+                support = '(F-F)'
+            elif stories[i].support == 'Fix-Pin':
+                support = '(F-P)'
+            elif stories[i].support == 'Pin-Fix':
+                support = '(P-F)'
+            elif stories[i].support == 'Pin-Pin':
+                support = '(P-P)'
 
-            storyVinculum = QGraphicsTextItem('{}'.format(vinculum))
-            storyVinculum.setFont(self.font40)
-            storyVinculum.setTextWidth(storyVinculum.boundingRect().width())
-            storyVinculum.setPos(-(storyVinculum.textWidth()+20), -(level+height/2)-10)
+            storySupport = QGraphicsTextItem('{}'.format(support))
+            storySupport.setFont(self.font40)
+            storySupport.setTextWidth(storySupport.boundingRect().width())
+            storySupport.setPos(-(storySupport.textWidth()+20), -(level+height/2)-10)
 
             self.scene1.addItem(beam)
             self.scene1.addItem(column1)
@@ -102,11 +103,11 @@ class StructureCanvas(QGraphicsView):
             self.scene1.addItem(storyHeight)
             self.scene1.addItem(storySection)
             self.scene1.addItem(storyE)
-            self.scene1.addItem(storyVinculum)
+            self.scene1.addItem(storySupport)
             self.scene1.addItem(numCircle)
 
             if i == 1:
-                if vinculum == '(E-E)':
+                if support == '(F-F)':
                     l1e = QGraphicsLineItem(-30, 0,
                                             30, 0)
                     l2e = QGraphicsLineItem(-40, 10,
@@ -158,7 +159,7 @@ class StructureCanvas(QGraphicsView):
                     self.scene1.addItem(l5d)
                     self.scene1.addItem(l6d)
 
-                elif vinculum == '(E-A)':
+                elif support == '(F-P)':
                     l1e = QGraphicsLineItem(-30, 0,
                                             30, 0)
                     l2e = QGraphicsLineItem(-40, 10,
@@ -218,7 +219,7 @@ class StructureCanvas(QGraphicsView):
                     self.scene1.addItem(l7d)
                     self.scene1.addItem(l8d)
 
-                elif vinculum == '(A-E)':
+                elif support == '(P-F)':
                     l1e = QGraphicsLineItem(-45, 40,
                                             45, 40)
                     l2e = QGraphicsLineItem(-40, 50,
@@ -278,7 +279,7 @@ class StructureCanvas(QGraphicsView):
                     self.scene1.addItem(l5d)
                     self.scene1.addItem(l6d)
 
-                elif vinculum == '(A-A)':
+                elif support == '(P-P)':
                     l1e = QGraphicsLineItem(-45, 40,
                                             45, 40)
                     l2e = QGraphicsLineItem(-40, 50,
@@ -347,17 +348,17 @@ class StructureCanvas(QGraphicsView):
                     self.scene1.addItem(l8d)
 
             else:
-                if vinculum == '(E-E)':
+                if support == '(F-F)':
                     pass
-                if vinculum == '(E-A)':
+                if support == '(F-P)':
                     cd = QGraphicsEllipseItem(b-10, -(level+20+h), 20, 20)
                     cd.setBrush(self.brush2)
                     self.scene1.addItem(cd)
-                if vinculum == '(A-E)':
+                if support == '(P-F)':
                     ce = QGraphicsEllipseItem(-10, -(level+20+h), 20, 20)
                     ce.setBrush(self.brush2)
                     self.scene1.addItem(ce)
-                if vinculum == '(A-A)':
+                if support == '(P-P)':
                     ce = QGraphicsEllipseItem(-10, -(level+20+h), 20, 20)
                     ce.setBrush(self.brush2)
                     self.scene1.addItem(ce)
