@@ -49,3 +49,5 @@ class Excitation(object):
 
             stiffness = self.structure[len(self.structure)].stiffness
             self.frequency = self.frequencyInput * sqrt(stiffness / mass)
+        else:
+            self.frequency = self.frequencyInput

@@ -1,3 +1,4 @@
+import numpy as np
 from DynaPy.DynaSolver import ODESolver
 
 
@@ -21,10 +22,13 @@ class OutputData(object):
         self.calc_dmf()
 
     def calc_dmf(self):
+        self.maxDisplacement = []
         self.DMF = []
         for i in range(self.massMatrix.shape[0]):
-            x_dyn = max(self.dynamicResponse.x[i, :].A1)
-            F = abs(max(self.forceMatrix[i, :].A1))
+            x_dyn = max(np.absolute(self.dynamicResponse.x[i, :].A1))
+            F = max(np.absolute(self.forceMatrix[i, :].A1))
             K = self.stiffnessMatrix[i, i]
             x_stat = F/K
-            self.DMF.append(x_dyn/x_stat)
+            if F != 0:
+                self.maxDisplacement.append(x_dyn)
+                self.DMF.append(x_dyn/x_stat)

@@ -46,9 +46,7 @@ class PltCanvas(FigureCanvas):
         self.draw()
 
     def plot_velocity(self, dynamicResponse, plotList):
-        self.axes.hold(False)
-        self.axes.plot([], [])
-        self.axes.hold(True)
+        self.axes.cla()
 
         cycol = cycle('brgcmk')
 
@@ -74,9 +72,7 @@ class PltCanvas(FigureCanvas):
         self.draw()
 
     def plot_acceleration(self, dynamicResponse, plotList):
-        self.axes.hold(False)
-        self.axes.plot([], [])
-        self.axes.hold(True)
+        self.axes.cla()
 
         cycol = cycle('brgcmk')
 
@@ -108,14 +104,70 @@ class PltCanvas(FigureCanvas):
         self.axes.set_ylabel(r'a (m/$s^2$)')
         self.draw()
 
-    def plot_dmf(self, relativeFrequencies, dmf):
-        self.axes.plot(relativeFrequencies, dmf)
-        self.axes.set_xlabel('Relative Frequency')
+    def plot_dmf(self, outputDMF, plotList):
+        self.axes.cla()
+
+        cycol = cycle('brgcmk')
+        frequencies = outputDMF.frequencies
+        dmf = outputDMF.dmf
+
+        for i, j in plotList:
+            if j:
+                n = int(i.split('Story ')[1]) - 1
+                self.axes.plot(frequencies, dmf[:, n].A1, c=next(cycol), label=i)
+
+        self.axes.legend(fontsize=11)
+        self.axes.set_title('DMF Vs. Excitation Frequency')
+        self.axes.set_xlabel('Excitation Frequency (rad/s)')
         self.axes.set_ylabel('DMF')
+        self.fig.tight_layout()
+        self.draw()
+
+    def plot_displacement_frequency(self, outputDMF, plotList):
+        self.axes.cla()
+
+        cycol = cycle('brgcmk')
+        frequencies = outputDMF.frequencies
+        x = outputDMF.displacements
+
+        for i, j in plotList:
+            if j:
+                n = int(i.split('Story ')[1]) - 1
+                self.axes.plot(frequencies, x[:, n].A1, c=next(cycol), label=i)
+
+        self.axes.legend(fontsize=11)
+        self.axes.set_title('Maximum Displacement Vs. Excitation Frequency')
+        self.axes.set_xlabel('Excitation Frequency (rad/s)')
+        self.axes.set_ylabel('Maximum Displacement (m)')
+        self.fig.tight_layout()
         self.draw()
 
     def reset_canvas(self):
         self.axes.cla()
-        # self.axes.hold(False)
-        # self.axes.plot([], [])
+        self.draw()
+
+    def plot_dis_vel(self, dynamicResponse, plotList):
+        self.axes.cla()
+
+        cycol = cycle('brgcmk')
+
+        for i, j in plotList:
+            if j:
+                if i != 'TLCD':
+                    n = int(i.split('Story ')[1]) - 1
+                    x = dynamicResponse.x[n, :].A1
+                    v = dynamicResponse.v[n, :].A1
+                    self.axes.plot(x, v, c=next(cycol), label=i)
+                else:
+                    n = len(plotList) - 1
+                    x = dynamicResponse.x[n, :].A1
+                    v = dynamicResponse.v[n, :].A1
+                    self.axes.plot(x, v, c=next(cycol), label='TLCD')
+
+        self.axes.legend(fontsize=11)
+        self.axes.set_title('Displacement Vs. Velocity')
+
+        self.axes.set_xlabel('x (m)')
+        self.axes.set_ylabel('v (m/s)')
+        self.fig.tight_layout()
         self.draw()

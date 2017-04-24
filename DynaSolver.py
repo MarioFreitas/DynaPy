@@ -157,9 +157,9 @@ def assemble_damping_matrix(stories, tlcd):
         C = np.mat(np.zeros((n + 1, n + 1)))
 
         for i in range(n):
-            C[i, i] = stories[i + 1].dampingRatio
+            C[i, i] = stories[i + 1].dampingCoefficient
 
-        C[n, n] = tlcd.dampingRatio
+        C[n, n] = tlcd.dampingCoefficient
 
     return C
 
@@ -258,7 +258,11 @@ def assemble_force_matrix(excitation, mass, configurations):
             storyMass = mass[i, i]
             force[i, :] = storyMass * a
 
-        return force
+        if tlcd is None:
+            return force
+        else:
+            force = np.concatenate((force, 0. * force[0, :]), 0)
+            return force
 
 
 if __name__ == '__main__':

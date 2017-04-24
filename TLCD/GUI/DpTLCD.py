@@ -28,5 +28,5 @@ class TLCD(object):
         if self.type == 'Basic TLCD':
             self.length = self.width + 2 * self.waterHeight
             self.mass = pi * ((self.diameter / 2) ** 2) * self.length * self.liquidSpecificMass
-            self.dampingRatio = 8 * pi * self.length * self.kineticViscosity * self.liquidSpecificMass
+            self.dampingCoefficient = 8 * pi * self.length * self.kineticViscosity * self.liquidSpecificMass
             self.stiffness = pi*(self.diameter**2)*self.liquidSpecificMass*self.gravity/2

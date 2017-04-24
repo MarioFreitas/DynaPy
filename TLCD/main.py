@@ -13,10 +13,13 @@ from PyQt5.QtWidgets import *
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 import numpy as np
 import sys
+import re
+import os
 from DynaPy.TLCD.GUI.mainWindowGUI import Ui_MainWindow
 from DynaPy.TLCD.GUI.DpInputData import InputData
 from DynaPy.TLCD.GUI.DpConfigurations import Configurations
 from DynaPy.TLCD.GUI.DpOutputData import OutputData
+from DynaPy.TLCD.GUI.DpOutputDMF import OutputDMF
 from DynaPy.TLCD.GUI.DpStory import Story
 from DynaPy.TLCD.GUI.DpTLCD import TLCD
 from DynaPy.TLCD.GUI.DpExcitation import Excitation
@@ -31,6 +34,7 @@ inputData = InputData()
 inputData.configurations = Configurations()
 
 outputData = None
+outputDMF = None
 
 debugOption = False
 np.set_printoptions(linewidth=100, precision=2)
@@ -58,32 +62,41 @@ class RunSetOfSimulationsThread(QThread):
     mySignal = pyqtSignal(list)
     percentageSignal = pyqtSignal(float)
 
-    def __init__(self, inputData_, relativeFrequencies, parent=None):
+    def __init__(self, inputData_, frequencies, parent=None):
         super(RunSetOfSimulationsThread, self).__init__(parent)
         self.inputData = inputData_
-        self.relativeFrequencies = relativeFrequencies
+        self.frequencies = frequencies
 
     def run(self):
+        displacmentList = []
         dmfList = []
-        totalIter = len(self.relativeFrequencies)
-        for i, j in zip(self.relativeFrequencies, range(len(self.relativeFrequencies))):
-            dmfList.append(self.simulation(self.inputData, i))
+        totalIter = len(self.frequencies)
+
+        self.mass = assemble_mass_matrix(self.inputData.stories, self.inputData.tlcd)
+        self.damping = assemble_damping_matrix(self.inputData.stories, self.inputData.tlcd)
+        self.stiffness = assemble_stiffness_matrix(self.inputData.stories, self.inputData.tlcd)
+
+        for i, j in zip(self.frequencies, range(len(self.frequencies))):
+            resp = self.simulation(self.inputData, i)
+            x = resp[0]
+            dmf = resp[1]
+            displacmentList.append(x)
+            dmfList.append(dmf)
+
             percentageDone = (j + 1) / totalIter * 100
             self.percentageSignal.emit(percentageDone)
-        self.mySignal.emit(dmfList)
+        signal = [self.frequencies, displacmentList, dmfList]
+        self.mySignal.emit(signal)
 
-    def simulation(self, inputData_, relativeFrequency):
-        inputData_.excitation.frequencyInput = relativeFrequency
-        inputData_.excitation.relativeFrequency = True
+    def simulation(self, inputData_, frequency):
+        inputData_.excitation.frequencyInput = frequency
+        inputData_.excitation.relativeFrequency = False
         inputData_.excitation.calc_frequency()
 
-        mass = assemble_mass_matrix(inputData_.stories, inputData_.tlcd)
-        damping = assemble_damping_matrix(inputData_.stories, inputData_.tlcd)
-        stiffness = assemble_stiffness_matrix(inputData_.stories, inputData_.tlcd)
-        force = assemble_force_matrix(inputData_.excitation, mass, inputData_.configurations)
+        force = assemble_force_matrix(inputData_.excitation, self.mass, inputData_.configurations)
 
-        outputData = OutputData(mass, damping, stiffness, force, inputData_.configurations)
-        return outputData.DMF
+        outputData_ = OutputData(self.mass, self.damping, self.stiffness, force, inputData_.configurations)
+        return [outputData_.maxDisplacement, outputData_.DMF]
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -102,10 +115,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # Setup GUI
         self.setupUi(self)
-        self.setWindowIcon(QIcon(None))
+        self.setWindowIcon(QIcon('icon_64.ico'))
         self.setGeometry(100, 100, 800, 600)
-        # with open('./GUI/styleSheet.qss', 'r') as css:
-        #     self.setStyleSheet(css.read())
+        self.statusBar()
+        self.aqua_theme()
 
         # Declare save file
         self.fileName = None
@@ -122,8 +135,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionBoundaryConditions.triggered.connect(self.boundary_conditions)
         self.actionStructureDamping.triggered.connect(self.structure_damping)
         self.actionFluidParameters.triggered.connect(self.fluid_parameters)
-        self.actionRunDynamicResponse.triggered.connect(self.run_simulation)
-        self.actionDynamicMagnificationFactor.triggered.connect(self.run_set_of_simulations)
+        self.actionDMFSettings.triggered.connect(self.dmf_settings)
+        self.actionRunDynamicResponse.triggered.connect(self.run_dynamic_response)
+        self.actionDynamicMagnificationFactor.triggered.connect(self.run_dmf)
+        self.actionBasicWhite.triggered.connect(self.basic_white_theme)
+        self.actionAqua.triggered.connect(self.aqua_theme)
+        self.actionDarkOrange.triggered.connect(self.dark_orange_theme)
+        self.actionDarkGreen.triggered.connect(self.dark_green_theme)
+        self.actionDarkBlue.triggered.connect(self.dark_blue_theme)
+        self.actionDarcula.triggered.connect(self.darcula_theme)
         self.actionMaximize.triggered.connect(self.showMaximized)
         self.actionFullScreen.triggered.connect(self.toggle_full_screen)
         self.actionAbout.triggered.connect(self.about)
@@ -192,9 +212,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dmfWidget.canvas.addWidget(self.dmfWidget.mpl_toolbar, 2, 3)
         self.dmfWidget.setLayout(self.dmfWidget.canvas)
 
-        self.holdPlotCheckBox.stateChanged.connect(self.dmfWidget.dmfCanvas.axes.hold)
-        self.cleanPlotButton.clicked.connect(self.dmfWidget.dmfCanvas.reset_canvas)
-
         # Connect Buttons
         self.addStoryBtn.clicked.connect(self.add_story)
         self.removeStoryBtn.clicked.connect(self.remove_story)
@@ -205,6 +222,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.addToPlotButton.clicked.connect(self.dynamic_response_add_list2_item)
         self.removeFromPlotButton.clicked.connect(self.dynamic_response_remove_list2_item)
         self.plotButton.clicked.connect(self.plot_dyn_resp)
+        self.addToDMFPlot.clicked.connect(self.dmf_add_list4_item)
+        self.removeFromDMFPlot.clicked.connect(self.dmf_remove_list4_item)
+        self.dmfPlotButton.clicked.connect(self.plot_dmf)
 
         # Connect ComboBoxes Value Changed
         self.storyNumberComboBox.currentIndexChanged.connect(self.set_structure_text_change)
@@ -216,6 +236,56 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # Show GUI
         self.showMaximized()
+
+    def basic_white_theme(self):
+        self.check_theme('actionBasicWhite')
+
+    def aqua_theme(self):
+        self.check_theme('actionAqua')
+
+    def dark_orange_theme(self):
+        self.check_theme('actionDarkOrange')
+
+    def dark_green_theme(self):
+        self.check_theme('actionDarkGreen')
+
+    def dark_blue_theme(self):
+        self.check_theme('actionDarkBlue')
+
+    def darcula_theme(self):
+        self.check_theme('actionDarcula')
+
+    def check_theme(self, theme):
+        themes = {'actionBasicWhite': './GUI/css/basicWhite/basicWhite.qss',
+                  'actionAqua': './GUI/css/aqua/aqua.qss',
+                  'actionDarkOrange': './GUI/css/darkOrange/darkOrange.qss',
+                  'actionDarkGreen': './GUI/css/darkGreen/darkGreen.qss',
+                  'actionDarkBlue': './GUI/css/darkBlue/style.qss',
+                  'actionDarcula': './GUI/css/darcula/darcula.qss'}
+        for i in themes.keys():
+            eval('self.{}.setChecked(False)'.format(i))
+
+        eval('self.{}.setChecked(True)'.format(theme))
+        qss = self.open_qss(themes[theme])
+        self.setStyleSheet(qss)
+
+    def open_qss(self, path):
+        """
+        opens a Qt stylesheet with a path relative to the project
+
+        Note: it changes the urls in the Qt stylesheet (in memory), and makes these urls relative to the project
+        Warning: the urls in the Qt stylesheet should have the forward slash ('/') as the pathname separator
+        """
+        with open(path) as f:
+            qss = f.read()
+            pattern = r'url\((.*?)\);'
+            for url in sorted(set(re.findall(pattern, qss)), key=len, reverse=True):
+                directory, basename = os.path.split(path)
+                new_url = os.path.join(directory, *url.split('/'))
+                new_url = os.path.normpath(new_url)
+                new_url = new_url.replace(os.path.sep, '/')
+                qss = qss.replace(url, new_url)
+            return qss
 
     def new_file(self):
         """ Resets all GUI inputs, inputData variable and save file.
@@ -341,7 +411,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             tlcdTypeIndex = self.tlcdModelComboBox.findText(str(inputData.tlcd.type))
             self.tlcdModelComboBox.setCurrentIndex(tlcdTypeIndex)
             self.diameterSimpleTlcdLineEdit.setText(str(inputData.tlcd.diameter * 100))
-            self.widthSimpleTlcdLineEdit.setText(str(inputData.tlcd.width))
+            self.widthSimpleTlcdLineEdit.setText(str(inputData.tlcd.width * 100))
             self.waterLevelSimpleTlcdLineEdit.setText(str(inputData.tlcd.waterHeight * 100))
             self.tlcdWidget.tlcdCanvas.painter(inputData.tlcd)
 
@@ -363,7 +433,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         elif inputData.excitation.type == 'General Excitation':
             self.excitationFileLineEdit.setText(inputData.excitation.fileName)
             self.excitationWidget.excitationCanvas.plot_excitation(inputData.excitation.t_input,
-                                                                                inputData.excitation.a_input)
+                                                                   inputData.excitation.a_input)
 
     def save_file(self):
         """ Checks for self.fileName: if None, calls save_file_as(), otherwise proceeds to the next check.
@@ -411,14 +481,9 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         if self.fileName is None:
             self.save_file_as()
         elif inputData.stories == {} or inputData.excitation is None:
-            icon = QStyle.SP_MessageBoxWarning
-            self.error03 = QMessageBox()
-            self.error03.setText('Preencha e confirme todos os dados nas abas Estrutura, TLCD e Excitação antes ' +
-                                 'de salvar.')
-            self.error03.setWindowTitle('Erro 03')
-            self.error03.setWindowIcon(self.error03.style().standardIcon(icon))
-            self.error03.setIcon(QMessageBox.Warning)
-            self.error03.show()
+            error03_title = "Error 03"
+            error03_msg = "Fill in all data in the Structures, TLCD and Excitation tabs before saving."
+            QMessageBox.warning(self, error03_title, error03_msg, QMessageBox.Ok)
         else:
             self.file = open(self.fileName, 'w', encoding='utf-8')
             self.file.write('Structure: \n-------------------\n')
@@ -482,7 +547,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
     def time_step(self):
         self.timeStepDialog = QWidget()
         self.timeStepDialog.grid = QGridLayout()
-        self.timeStepDialog.label = QLabel('Passo de tempo: (s)', self)
+        self.timeStepDialog.label = QLabel('Time step: (s)', self)
         self.timeStepDialog.le = QLineEdit(self)
         self.timeStepDialog.le.setPlaceholderText('0.001')
         self.timeStepDialog.le.setText(str(inputData.configurations.timeStep))
@@ -492,7 +557,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         self.timeStepDialog.grid.addWidget(self.timeStepDialog.le, 1, 2)
         self.timeStepDialog.grid.addWidget(self.timeStepDialog.button, 2, 1, 1, 2)
         self.timeStepDialog.setLayout(self.timeStepDialog.grid)
-        self.timeStepDialog.setWindowTitle('Definição do passo de tempo')
+        self.timeStepDialog.setWindowTitle('Time Step Configuration')
         self.timeStepDialog.setGeometry(300, 300, 300, 200)
         self.timeStepDialog.show()
 
@@ -501,19 +566,15 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             inputData.configurations.timeStep = float(get_text(self.timeStepDialog.le))
             self.timeStepDialog.hide()
         except ValueError:
-            icon = QStyle.SP_MessageBoxWarning
-            self.error05 = QMessageBox()
-            self.error05.setText('O passo de tempo deve ser um número real')
-            self.error05.setWindowTitle('Erro 05')
-            self.error05.setWindowIcon(self.error05.style().standardIcon(icon))
-            self.error05.setIcon(QMessageBox.Warning)
-            self.error05.show()
+            error05_title = "Error 05"
+            error05_msg = "Time step must be a float."
+            QMessageBox.warning(self, error05_title, error05_msg, QMessageBox.Ok)
 
     def boundary_conditions(self):
         self.boundaryConditionsDialog = QWidget()
         self.boundaryConditionsDialog.grid = QGridLayout()
-        self.boundaryConditionsDialog.label1 = QLabel('Deslocamento inicial: (m)')
-        self.boundaryConditionsDialog.label2 = QLabel('Velocidade inicial: (m/s)')
+        self.boundaryConditionsDialog.label1 = QLabel('Initial displacement: (m)')
+        self.boundaryConditionsDialog.label2 = QLabel('Initial velocity: (m/s)')
         self.boundaryConditionsDialog.le1 = QLineEdit(self)
         self.boundaryConditionsDialog.le1.setPlaceholderText('0.00')
         self.boundaryConditionsDialog.le1.setText(str(inputData.configurations.initialDisplacement))
@@ -528,7 +589,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         self.boundaryConditionsDialog.grid.addWidget(self.boundaryConditionsDialog.le2, 2, 2)
         self.boundaryConditionsDialog.grid.addWidget(self.boundaryConditionsDialog.btn, 3, 1, 1, 2)
         self.boundaryConditionsDialog.setLayout(self.boundaryConditionsDialog.grid)
-        self.boundaryConditionsDialog.setWindowTitle('Definição das condições de contorno')
+        self.boundaryConditionsDialog.setWindowTitle('Boundary Conditions Configuration')
         self.boundaryConditionsDialog.setGeometry(300, 300, 300, 200)
         self.boundaryConditionsDialog.show()
 
@@ -538,18 +599,14 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             inputData.configurations.initialVelocity = float(get_text(self.boundaryConditionsDialog.le2))
             self.boundaryConditionsDialog.hide()
         except ValueError:
-            icon = QStyle.SP_MessageBoxWarning
-            self.error06 = QMessageBox()
-            self.error06.setText('Deslocamento e velocidade iniciais devem ser números reais')
-            self.error06.setWindowTitle('Erro 06')
-            self.error06.setWindowIcon(self.error06.style().standardIcon(icon))
-            self.error06.setIcon(QMessageBox.Warning)
-            self.error06.show()
+            error06_title = "Error 6"
+            error06_msg = "Initial displacement and initial velocity must be float."
+            QMessageBox.warning(self, error06_title, error06_msg, QMessageBox.Ok)
 
     def structure_damping(self):
         self.structureDampingDialog = QWidget()
         self.structureDampingDialog.grid = QGridLayout()
-        self.structureDampingDialog.label = QLabel('Taxa de amortecimento da estrutura:', self)
+        self.structureDampingDialog.label = QLabel('Structure damping ratio:', self)
         self.structureDampingDialog.le = QLineEdit(self)
         self.structureDampingDialog.le.setPlaceholderText('0.02')
         self.structureDampingDialog.le.setText(str(inputData.configurations.dampingRatio))
@@ -559,7 +616,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         self.structureDampingDialog.grid.addWidget(self.structureDampingDialog.le, 1, 2)
         self.structureDampingDialog.grid.addWidget(self.structureDampingDialog.button, 2, 1, 1, 2)
         self.structureDampingDialog.setLayout(self.structureDampingDialog.grid)
-        self.structureDampingDialog.setWindowTitle('Definição da taxa de amortecimento da estrutura')
+        self.structureDampingDialog.setWindowTitle('Structure Damping Ratio Configuration')
         self.structureDampingDialog.setGeometry(300, 300, 300, 200)
         self.structureDampingDialog.show()
 
@@ -568,19 +625,15 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             inputData.configurations.dampingRatio = float(get_text(self.structureDampingDialog.le))
             self.structureDampingDialog.hide()
         except ValueError:
-            icon = QStyle.SP_MessageBoxWarning
-            self.error07 = QMessageBox()
-            self.error07.setText('A taxa de amortecimento da estrutura deve ser um número real')
-            self.error07.setWindowTitle('Erro 07')
-            self.error07.setWindowIcon(self.error07.style().standardIcon(icon))
-            self.error07.setIcon(QMessageBox.Warning)
-            self.error07.show()
+            error07_title = "Error 07"
+            error07_msg = "Structure damping ratio must be float."
+            QMessageBox.warning(self, error07_title, error07_msg, QMessageBox.Ok)
 
     def fluid_parameters(self):
         self.fluidParametersDialog = QWidget()
         self.fluidParametersDialog.grid = QGridLayout()
-        self.fluidParametersDialog.label1 = QLabel('Massa específica: (kg/m³)')
-        self.fluidParametersDialog.label2 = QLabel('Viscosidade cinemática: (m²/s)')
+        self.fluidParametersDialog.label1 = QLabel('Specific mass: (kg/m³)')
+        self.fluidParametersDialog.label2 = QLabel('Kinetic viscosity: (m²/s)')
         self.fluidParametersDialog.le1 = QLineEdit(self)
         self.fluidParametersDialog.le1.setPlaceholderText('998.2071')
         self.fluidParametersDialog.le1.setText(str(inputData.configurations.liquidSpecificMass))
@@ -595,7 +648,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         self.fluidParametersDialog.grid.addWidget(self.fluidParametersDialog.le2, 2, 2)
         self.fluidParametersDialog.grid.addWidget(self.fluidParametersDialog.btn, 3, 1, 1, 2)
         self.fluidParametersDialog.setLayout(self.fluidParametersDialog.grid)
-        self.fluidParametersDialog.setWindowTitle('Definição dos parâmetros do fluido')
+        self.fluidParametersDialog.setWindowTitle('Fluid Parameters Configuration')
         self.fluidParametersDialog.setGeometry(300, 300, 300, 200)
         self.fluidParametersDialog.show()
 
@@ -605,13 +658,42 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             inputData.configurations.kineticViscosity = float(get_text(self.fluidParametersDialog.le2))
             self.fluidParametersDialog.hide()
         except ValueError:
-            icon = QStyle.SP_MessageBoxWarning
-            self.error08 = QMessageBox()
-            self.error08.setText('Massa específica e viscosidade cinemática devem ser números reais')
-            self.error08.setWindowTitle('Erro 08')
-            self.error08.setWindowIcon(self.error08.style().standardIcon(icon))
-            self.error08.setIcon(QMessageBox.Warning)
-            self.error08.show()
+            error08_title = "Error 08"
+            error08_msg = "Specific mass and kinetic viscosity must be float."
+            QMessageBox.warning(self, error08_title, error08_msg, QMessageBox.Ok)
+
+    def dmf_settings(self):
+        self.dmfSettingsDialog = QWidget()
+        self.dmfSettingsDialog.grid = QGridLayout()
+        self.dmfSettingsDialog.label1 = QLabel('Discretization points:')
+        self.dmfSettingsDialog.label2 = QLabel('Upper limit factor: ')
+        self.dmfSettingsDialog.le1 = QLineEdit(self)
+        self.dmfSettingsDialog.le1.setPlaceholderText('200')
+        self.dmfSettingsDialog.le1.setText(str(inputData.configurations.dmfDiscretizationPoints))
+        self.dmfSettingsDialog.le2 = QLineEdit(self)
+        self.dmfSettingsDialog.le2.setPlaceholderText('2')
+        self.dmfSettingsDialog.le2.setText(str(inputData.configurations.dmfUpperLimitFactor))
+        self.dmfSettingsDialog.btn = QPushButton('Ok', self)
+        self.dmfSettingsDialog.btn.clicked.connect(self.dmf_settings_config)
+        self.dmfSettingsDialog.grid.addWidget(self.dmfSettingsDialog.label1, 1, 1)
+        self.dmfSettingsDialog.grid.addWidget(self.dmfSettingsDialog.label2, 2, 1)
+        self.dmfSettingsDialog.grid.addWidget(self.dmfSettingsDialog.le1, 1, 2)
+        self.dmfSettingsDialog.grid.addWidget(self.dmfSettingsDialog.le2, 2, 2)
+        self.dmfSettingsDialog.grid.addWidget(self.dmfSettingsDialog.btn, 3, 1, 1, 2)
+        self.dmfSettingsDialog.setLayout(self.dmfSettingsDialog.grid)
+        self.dmfSettingsDialog.setWindowTitle('DMF Discretization Settings')
+        self.dmfSettingsDialog.setGeometry(300, 300, 300, 200)
+        self.dmfSettingsDialog.show()
+
+    def dmf_settings_config(self):
+        try:
+            inputData.configurations.dmfDiscretizationPoints = int(get_text(self.dmfSettingsDialog.le1))
+            inputData.configurations.dmfUpperLimitFactor = float(get_text(self.dmfSettingsDialog.le2))
+            self.dmfSettingsDialog.hide()
+        except ValueError:
+            error10_title = "Error 10"
+            error10_msg = "Discretization points must be int and Upper limit factor must be float."
+            QMessageBox.warning(self, error10_title, error10_msg, QMessageBox.Ok)
 
     def set_method_mdf(self):
         self.actionFiniteDifferenceMethod.setChecked(True)
@@ -621,16 +703,12 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         self.actionFiniteDifferenceMethod.setChecked(False)
         self.actionLinearAccelerationMethod.setChecked(True)
 
-    def run_simulation(self):
+    def run_dynamic_response(self):
         if inputData.stories == {} or inputData.excitation is None:
-            icon = QStyle.SP_MessageBoxWarning
-            self.error04 = QMessageBox()
-            self.error04.setText('Preencha e confirme todos os dados nas abas Estrutura, TLCD e Excitação antes ' +
-                                 'de acionar a rotina de cálculo.')
-            self.error04.setWindowTitle('Erro 04')
-            self.error04.setWindowIcon(self.error04.style().standardIcon(icon))
-            self.error04.setIcon(QMessageBox.Warning)
-            self.error04.show()
+            error04A_title = "Error 04A"
+            error04A_msg = "Fill in all data in Structure, TLCD and Excitation tabs before trying" + \
+                          " to calculate dynamic response."
+            QMessageBox.warning(self, error04A_title, error04A_msg, QMessageBox.Ok)
         else:
             # Confirm tlcd
             self.add_tlcd()
@@ -669,16 +747,12 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             self.runSimulationThread.mySignal.connect(process)
             self.runSimulationThread.start()
 
-    def run_set_of_simulations(self):
+    def run_dmf(self):
         if inputData.stories == {} or inputData.excitation is None:
-            icon = QStyle.SP_MessageBoxWarning
-            self.error04 = QMessageBox()
-            self.error04.setText('Preencha e confirme todos os dados nas abas Estrutura, TLCD e Excitação antes ' +
-                                 'de acionar a rotina de cálculo.')
-            self.error04.setWindowTitle('Erro 04')
-            self.error04.setWindowIcon(self.error04.style().standardIcon(icon))
-            self.error04.setIcon(QMessageBox.Warning)
-            self.error04.show()
+            error04B_title = "Error 04B"
+            error04B_msg = "Fill in all data in Structure, TLCD and Excitation tabs before trying" + \
+                           " to calculate dynamic magnification factor."
+            QMessageBox.warning(self, error04B_title, error04B_msg, QMessageBox.Ok)
         else:
             # Confirm tlcd
             self.add_tlcd()
@@ -696,18 +770,36 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             # Confirm excitation
             self.add_excitation()
 
-            relativeFrequencies = np.arange(0.01, 2.01, 0.01)
+            naturalFrequencies = []
+            for i in inputData.stories.values():
+                naturalFrequencies.append(i.naturalFrequency)
+
+            n = inputData.configurations.dmfDiscretizationPoints
+            upperFrequency = inputData.configurations.dmfUpperLimitFactor*max(naturalFrequencies)
+            frequencies = np.linspace(0.0001, upperFrequency, n)
 
             def process(signalMessage):
-                global DMFPlotList
-                dmfList = signalMessage
-                DMFPlotList = [relativeFrequencies, dmfList]
-                self.dmfWidget.dmfCanvas.plot_dmf(relativeFrequencies, dmfList)
+                global outputDMF
+                frequenciesList = signalMessage[0]
+                displacementList = signalMessage[1]
+                displacementList = np.mat(displacementList)
+                dmfList = signalMessage[2]
+                dmfList = np.mat(dmfList)
+                outputDMF = OutputDMF(frequenciesList, displacementList, dmfList)
 
-            self.runSetOfSimulationsThread = RunSetOfSimulationsThread(inputData, relativeFrequencies)
+                # Generate plot
+                self.dmf_add_list3_items()
+                self.list3.setCurrentRow(self.list3.count() - 1)
+                # if inputData.tlcd is not None:
+                #     self.list3.setCurrentRow(self.list3.count() - 2)
+                # else:
+                #     self.list3.setCurrentRow(self.list3.count() - 1)
+                self.dmf_add_list4_item()
+                self.plot_dmf()
+
+            self.runSetOfSimulationsThread = RunSetOfSimulationsThread(inputData, frequencies)
             self.runSetOfSimulationsThread.mySignal.connect(process)
-            progressBar = self.dmfProgressBar
-            self.runSetOfSimulationsThread.percentageSignal.connect(progressBar.setValue)
+            self.runSetOfSimulationsThread.percentageSignal.connect(self.dmfProgressBar.setValue)
             self.runSetOfSimulationsThread.start()
 
     def toggle_full_screen(self):
@@ -726,18 +818,15 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         Shortcut: F1
         :return: None
         """
-        self.aboutmsg = QMessageBox()
-        self.aboutmsg.setText('Dynapy TLCD Analyser - Versão 0.4')
-        self.aboutmsg.setInformativeText(
-            'Esse programa toma os dados de um edifício tipo "shear-building" equipado com um Amortecedor de ' +
-            'Coluna de Líquido Sintonizado (TLCD) e calcula a resposta dinâmica de cada um dos pavimentos. ' +
-            'Além disso, o software é capaz de fazer análises de frequências, otimizações e gerar animações. ' +
-            'Esse programa tem cunho puramente educacional. O autor não se responsabiliza pelo uso ou mau uso do ' +
-            'programa e pelos seus resultados. O usuário é responsávelo por toda e qualquer conclusão feita ' +
-            'com o uso do programa. Não existe nenhum compromisso de bom funcionamento ou qualquer garantia.')
-        self.aboutmsg.setWindowTitle('Dynapy TLCD Analyser')
-        self.aboutmsg.setIconPixmap(QPixmap(None))
-        self.aboutmsg.exec_()
+        about_title = "DynaPy TLCD Analyser - Version 1.2.3"
+        about_msg = "This software takes the input data of a shear-build equipped with a Tuned Liquid Column " + \
+                    "Damper (TLCD) and calculates the dynamic response at each story. Furthermore, this software " + \
+                    "is capable of making analysis for different frequencies, performing optimizations and making " + \
+                    "animated representations of the structure. This software is intended for educational use. " + \
+                    "The author does not take responsibility for any sort of misuse of the software or for its " + \
+                    "results. The user of this software is responsible for any conclusion taken using " + \
+                    "this software. There is no commitment or warranty implied in the use of the software"
+        QMessageBox.information(self, about_title, about_msg, QMessageBox.Ok)
         # TODO Fix about text. Include icon, name, version, author, date and description.
 
     def dev_tool(self):
@@ -792,12 +881,10 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             if self.storyNumberComboBox.currentIndex() != 0:
                 self.storyNumberComboBox.setCurrentIndex(self.storyNumberComboBox.currentIndex() - 1)
         else:
-            icon = QStyle.SP_MessageBoxWarning
-            self.msgRemoveStory = QMessageBox()
-            self.msgRemoveStory.setText('Remova primeiro o último andar adicionado.')
-            self.msgRemoveStory.setWindowTitle('Erro de Remoção')
-            self.msgRemoveStory.setWindowIcon(self.msgRemoveStory.style().standardIcon(icon))
-            self.msgRemoveStory.show()
+            error09_title = "Error 09"
+            error09_msg = "Remove the last story first."
+            QMessageBox.warning(self, error09_title, error09_msg, QMessageBox.Ok)
+
 
     def set_structure_text_change(self):
         i = int(get_text(self.storyNumberComboBox))
@@ -876,22 +963,13 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             anlyDuration = float(get_text(self.sineAnalysisDurationLineEdit))
 
             if (relativeFrequency == True) and (inputData.stories == {}):
-                icon = QStyle.SP_MessageBoxWarning
-                self.error01 = QMessageBox()
-                self.error01.setText('Para utilizar a opção de frequência relativa é necessário ' +
-                                     'adicionar a estrutura e o TLCD previamente.')
-                self.error01.setWindowTitle('Erro 01')
-                self.error01.setWindowIcon(self.error01.style().standardIcon(icon))
-                self.error01.setIcon(QMessageBox.Warning)
-                self.error01.exec()
+                error01_title = "Error 01"
+                error01_msg = "Structure and TLCD must be added before adding excitation with realtive frequency."
+                QMessageBox.warning(self, error01_title, error01_msg, QMessageBox.Ok)
             elif anlyDuration < exctDuration:
-                icon = QStyle.SP_MessageBoxWarning
-                self.error02 = QMessageBox()
-                self.error02.setText('Tempo de análise não pode ser menor do que o tempo de excitação.')
-                self.error02.setWindowTitle('Erro 02')
-                self.error02.setWindowIcon(self.error02.style().standardIcon(icon))
-                self.error02.setIcon(QMessageBox.Warning)
-                self.error02.show()
+                error02_title = "Error 02"
+                error02_msg = "Analysis duration must be greater or equal to excitation duration."
+                QMessageBox.warning(self, error02_title, error02_msg, QMessageBox.Ok)
             else:
                 excitation = Excitation(exct_type, amplitude, frequency, relativeFrequency, exctDuration, anlyDuration,
                                         structure=inputData.stories, tlcd=inputData.tlcd)
@@ -930,7 +1008,8 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
                                     fileName=fileName)
             inputData.excitation = excitation
 
-            self.excitationWidget.excitationCanvas.plot_excitation(inputData.excitation.t_input, inputData.excitation.a_input)
+            self.excitationWidget.excitationCanvas.plot_excitation(inputData.excitation.t_input,
+                                                                   inputData.excitation.a_input)
 
     def excitation_grid_toggle(self):
         """ Toggles plot grid on and off
@@ -954,12 +1033,12 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
         for i in range(1, len(inputData.stories) + 1):
             storiesTable.append([i,
-                                      inputData.stories[i].mass / 1000,
-                                      inputData.stories[i].height,
-                                      inputData.stories[i].width * 100,
-                                      inputData.stories[i].depth * 100,
-                                      inputData.stories[i].E / 1e9,
-                                      inputData.stories[i].support])
+                                 inputData.stories[i].mass / 1000,
+                                 inputData.stories[i].height,
+                                 inputData.stories[i].width * 100,
+                                 inputData.stories[i].depth * 100,
+                                 inputData.stories[i].E / 1e9,
+                                 inputData.stories[i].support])
 
         storiesData = ''
 
@@ -982,7 +1061,7 @@ Column Elasticity Module: {} GPa
 Diameter: {} cm
 Water level: {} cm
 Width: {} m""".format(inputData.tlcd.type, inputData.tlcd.diameter * 100,
-                        inputData.tlcd.waterHeight * 100, inputData.tlcd.width)
+                      inputData.tlcd.waterHeight * 100, inputData.tlcd.width)
 
         h2_exct = 'Excitation'
 
@@ -997,7 +1076,7 @@ Amplitude: {} m/s²
 Frequency: {}
 Excitation duration: {} s
 Analysis duration: {} s""".format(inputData.excitation.type, inputData.excitation.amplitude, freq,
-                                 inputData.excitation.exctDuration, inputData.excitation.anlyDuration)
+                                  inputData.excitation.exctDuration, inputData.excitation.anlyDuration)
         elif inputData.excitation.type == 'General Excitation':
             exctData = """Excitation type: {}
 File: {}""".format(inputData.excitation.type, inputData.excitation.fileName)
@@ -1012,12 +1091,12 @@ Structure damping ratio: {}
 Fluid specific mass: {} (kg/m3)
 Kinetic viscosity: {} (m²/s)
 Gravity acceleration: {} (m/s²)""".format(inputData.configurations.method, inputData.configurations.timeStep,
-                                             inputData.configurations.initialDisplacement,
-                                             inputData.configurations.initialVelocity,
-                                             inputData.configurations.dampingRatio,
-                                             inputData.configurations.liquidSpecificMass,
-                                             inputData.configurations.kineticViscosity,
-                                             inputData.configurations.gravity)
+                                          inputData.configurations.initialDisplacement,
+                                          inputData.configurations.initialVelocity,
+                                          inputData.configurations.dampingRatio,
+                                          inputData.configurations.liquidSpecificMass,
+                                          inputData.configurations.kineticViscosity,
+                                          inputData.configurations.gravity)
 
         h1_matrices = 'Movement Equation'
 
@@ -1160,12 +1239,14 @@ Gravity acceleration: {} (m/s²)""".format(inputData.configurations.method, inpu
             else:
                 plotList.append((get_text(self.list1), True))
 
-        if plotType == 'Displacement':
+        if plotType == 'Displacement Vs. Time':
             self.dynRespWidget.dynRespCanvas.plot_displacement(outputData.dynamicResponse, plotList)
-        elif plotType == 'Velocity':
+        elif plotType == 'Velocity Vs. Time':
             self.dynRespWidget.dynRespCanvas.plot_velocity(outputData.dynamicResponse, plotList)
-        elif plotType == 'Acceleration':
+        elif plotType == 'Acceleration Vs. Time':
             self.dynRespWidget.dynRespCanvas.plot_acceleration(outputData.dynamicResponse, plotList)
+        elif plotType == 'Displacement Vs. Velocity':
+            self.dynRespWidget.dynRespCanvas.plot_dis_vel(outputData.dynamicResponse, plotList)
 
     # DMF Methods
     def dmf_grid_toggle(self):
@@ -1176,6 +1257,68 @@ Gravity acceleration: {} (m/s²)""".format(inputData.configurations.method, inpu
         self.dmfWidget.dmfCanvas.axes.grid(self.dmfWidget.gridChkBox.isChecked())
         self.dmfWidget.dmfCanvas.draw()
 
+    def dmf_add_list3_items(self):
+        """ Adds all stories and the TLCD to list 1. Takes from inputData.
+
+        :return: None
+        """
+        self.list3.clear()
+
+        for i in inputData.stories.keys():
+            self.list3.addItem('Story {}'.format(i))
+
+        if inputData.tlcd is not None:
+            pass
+            # self.list3.addItem('TLCD')
+
+    def dmf_add_list4_item(self):
+        """ Adds the item selected on list 1 to list 2 without making duplicates. If successfull, advances one row on
+        list 1 and sorts list 2 alphabetically.
+
+        :return: None
+        """
+        try:
+            item = get_text(self.list3)
+            row = self.list3.row(self.list3.currentItem())
+        except AttributeError:
+            return
+
+        if not self.list4.findItems(item, Qt.MatchExactly):
+            self.list4.addItem(item)
+
+        if row < self.list3.count() - 1:
+            self.list3.setCurrentRow(row + 1)
+        self.list4.sortItems(Qt.AscendingOrder)
+
+    def dmf_remove_list4_item(self):
+        """ Removes the selected item from list 2
+
+        :return: None
+        """
+        item = self.list4.currentItem()
+        self.list4.takeItem(self.list4.row(item))
+
+    def plot_dmf(self):
+        """ Reads the plot type and the QListWidget of DOFs to plot. Makes a list of DOFs to plot and send
+        outputData.dynamicResponse and plotList to plot_displacement
+
+        :return:
+        """
+        plotType = get_text(self.dmfPlotTypeComboBox)
+        plotList = []
+
+        for i in range(self.list3.count()):
+            self.list3.setCurrentRow(i)
+            item = get_text(self.list3)
+            if not self.list4.findItems(item, Qt.MatchExactly):
+                plotList.append((get_text(self.list3), False))
+            else:
+                plotList.append((get_text(self.list3), True))
+
+        if plotType == 'DMF Vs Excitation Frequency':
+            self.dmfWidget.dmfCanvas.plot_dmf(outputDMF, plotList)
+        elif plotType == 'Max. Displacement Vs. Excitation Frequency':
+            self.dmfWidget.dmfCanvas.plot_displacement_frequency(outputDMF, plotList)
 
 def main():
     app = QApplication(sys.argv)
@@ -1183,11 +1326,9 @@ def main():
     if debugOption:
         # DEBUG OPTION - LOAD IMMEDIATELY
         # fileName = './save/Validations/Caso 1 (1 andar sem amort).dpfl'
-        fileName = './save/Validations/Caso 1 (1 andar sem amort).dpfl'
+        fileName = './save/tlcd-general.dpfl'
         GUI.open_file(fileName=fileName)
-        # GUI.add_story()
-        # GUI.add_excitation()
-        GUI.run_simulation()
+        GUI.run_dynamic_response()
     sys.exit(app.exec_())
 
 
