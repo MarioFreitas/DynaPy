@@ -6,7 +6,7 @@ import numpy as np
 from DynaPy.TLCD.GUI.excitationGeneratorGUI import Ui_MainWindow
 from DynaPy.TLCD.GUI.DpPltCanvas import PltCanvas
 import sys
-from lib import *
+from DynaPy.lib import get_text
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
