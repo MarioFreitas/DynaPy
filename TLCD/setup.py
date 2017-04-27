@@ -23,7 +23,8 @@ includes = []
 include_files = [os.path.join(PYTHON_INSTALL_DIR, 'DLLs', 'tk86t.dll'),
                  os.path.join(PYTHON_INSTALL_DIR, 'DLLs', 'tcl86t.dll'),
                  'icon_64.ico',
-                 'C:\Python36\Lib\site-packages\DynaPy\TLCD\save']
+                 'C:\Python36\Lib\site-packages\DynaPy\TLCD\save',
+                 'C:\Python36\Lib\site-packages\DynaPy\TLCD\css']
 excludes = ['zmq']
 zip_include_packages = ['asncio', 'ctypes', 'collections', 'curses', 'dateutil', 'distutils', 'DynaPy', 'email',
                         'encodings', 'imageformats', 'importlib', 'lib2to3', 'logging', 'matplotlib', 'mpl-data',

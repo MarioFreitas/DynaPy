@@ -15,3 +15,5 @@ def get_text(obj):
         return obj.currentItem().text()
     elif str(type(obj)) == "<class 'PyQt5.QtWidgets.QComboBox'>":
         return obj.currentText()
+    elif str(type(obj)) == "<class 'PyQt5.QtWidgets.QTableWidgetItem'>":
+        return obj.text()

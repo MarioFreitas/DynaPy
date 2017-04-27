@@ -27,6 +27,7 @@ from DynaPy.TLCD.GUI.DpPltCanvas import PltCanvas
 from DynaPy.TLCD.GUI.DpStructureCanvas import StructureCanvas
 from DynaPy.TLCD.GUI.DpTLCDCanvas import TLCDCanvas
 from DynaPy.TLCD.GUI.DpAnimationCanvas import AnimationCanvas
+from DynaPy.TLCD.excitationGenerator import MainWindow as ExcitationGenerator
 from DynaPy.lib import get_text
 from DynaPy.DynaSolver import *
 
@@ -118,7 +119,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setWindowIcon(QIcon('icon_64.ico'))
         self.setGeometry(100, 100, 800, 600)
         self.statusBar()
-        self.aqua_theme()
+        self.dark_blue_theme()
 
         # Declare save file
         self.fileName = None
@@ -138,12 +139,29 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionDMFSettings.triggered.connect(self.dmf_settings)
         self.actionRunDynamicResponse.triggered.connect(self.run_dynamic_response)
         self.actionDynamicMagnificationFactor.triggered.connect(self.run_dmf)
-        self.actionBasicWhite.triggered.connect(self.basic_white_theme)
+
+        # (Themes)
         self.actionAqua.triggered.connect(self.aqua_theme)
-        self.actionDarkOrange.triggered.connect(self.dark_orange_theme)
-        self.actionDarkGreen.triggered.connect(self.dark_green_theme)
-        self.actionDarkBlue.triggered.connect(self.dark_blue_theme)
+        self.actionBasicWhite.triggered.connect(self.basic_white_theme)
+        self.actionBlueGlass.triggered.connect(self.blue_glass_theme)
         self.actionDarcula.triggered.connect(self.darcula_theme)
+        self.actionDark.triggered.connect(self.dark_theme)
+        self.actionDarkBlue.triggered.connect(self.dark_blue_theme)
+        self.actionDarkBlueFreeCAD.triggered.connect(self.dark_blue_freeCad_theme)
+        self.actionDarkGreen.triggered.connect(self.dark_green_theme)
+        self.actionDarkGreenFreeCAD.triggered.connect(self.dark_green_freeCad_theme)
+        self.actionDarkOrange.triggered.connect(self.dark_orange_theme)
+        self.actionDarkOrangeFreeCAD.triggered.connect(self.dark_orange_freeCad_theme)
+        self.actionLight.triggered.connect(self.light_theme)
+        self.actionLightBlueFreeCAD.triggered.connect(self.light_blue_freeCad_theme)
+        self.actionLightGreenFreeCAD.triggered.connect(self.light_green_freeCad_theme)
+        self.actionLightOrangeFreeCAD.triggered.connect(self.light_orange_freeCad_theme)
+        self.actionMachinery.triggered.connect(self.machinery_theme)
+        self.actionMinimalist.triggered.connect(self.minimalist_theme)
+        self.actionNightMapping.triggered.connect(self.night_mapping_theme)
+        self.actionWombat.triggered.connect(self.wombat_theme)
+
+        # Connect Actions (continued)
         self.actionMaximize.triggered.connect(self.showMaximized)
         self.actionFullScreen.triggered.connect(self.toggle_full_screen)
         self.actionAbout.triggered.connect(self.about)
@@ -156,6 +174,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionAnimation.setDisabled(True)
 
         # Structure Canvas
+        # self.splitter.setSizes([400, 400])
         self.structureWidget.structureCanvas = StructureCanvas(self.structureWidget)
         self.structureWidget.grid = QGridLayout()
         self.structureWidget.grid.addWidget(self.structureWidget.structureCanvas, 1, 1)
@@ -237,37 +256,91 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Show GUI
         self.showMaximized()
 
-    def basic_white_theme(self):
-        self.check_theme('actionBasicWhite')
-
     def aqua_theme(self):
         self.check_theme('actionAqua')
 
-    def dark_orange_theme(self):
-        self.check_theme('actionDarkOrange')
+    def basic_white_theme(self):
+        self.check_theme('actionBasicWhite')
 
-    def dark_green_theme(self):
-        self.check_theme('actionDarkGreen')
-
-    def dark_blue_theme(self):
-        self.check_theme('actionDarkBlue')
+    def blue_glass_theme(self):
+        self.check_theme('actionBlueGlass')
 
     def darcula_theme(self):
         self.check_theme('actionDarcula')
 
+    def dark_theme(self):
+        self.check_theme('actionDark')
+
+    def dark_blue_theme(self):
+        self.check_theme('actionDarkBlue')
+
+    def dark_blue_freeCad_theme(self):
+        self.check_theme('actionDarkBlueFreeCAD')
+
+    def dark_green_theme(self):
+        self.check_theme('actionDarkGreen')
+
+    def dark_green_freeCad_theme(self):
+        self.check_theme('actionDarkGreenFreeCAD')
+
+    def dark_orange_theme(self):
+        self.check_theme('actionDarkOrange')
+
+    def dark_orange_freeCad_theme(self):
+        self.check_theme('actionDarkOrangeFreeCAD')
+
+    def light_theme(self):
+        self.check_theme('actionLight')
+
+    def light_blue_freeCad_theme(self):
+        self.check_theme('actionLightBlueFreeCAD')
+
+    def light_green_freeCad_theme(self):
+        self.check_theme('actionLightGreenFreeCAD')
+
+    def light_orange_freeCad_theme(self):
+        self.check_theme('actionLightOrangeFreeCAD')
+
+    def machinery_theme(self):
+        self.check_theme('actionMachinery')
+
+    def minimalist_theme(self):
+        self.check_theme('actionMinimalist')
+
+    def night_mapping_theme(self):
+        self.check_theme('actionNightMapping')
+
+    def wombat_theme(self):
+        self.check_theme('actionWombat')
+
     def check_theme(self, theme):
-        themes = {'actionBasicWhite': './GUI/css/basicWhite/basicWhite.qss',
-                  'actionAqua': './GUI/css/aqua/aqua.qss',
-                  'actionDarkOrange': './GUI/css/darkOrange/darkOrange.qss',
-                  'actionDarkGreen': './GUI/css/darkGreen/darkGreen.qss',
-                  'actionDarkBlue': './GUI/css/darkBlue/style.qss',
-                  'actionDarcula': './GUI/css/darcula/darcula.qss'}
+        themes = {'actionAqua': './css/aqua/aqua.qss',
+                  'actionBasicWhite': './css/basicWhite/basicWhite.qss',
+                  'actionBlueGlass': './css/blueGlass/blueGlass.qss',
+                  'actionDarcula': './css/darcula/darcula.qss',
+                  'actionDark': './css/dark/darkstyle.qss',
+                  'actionDarkBlue': './css/darkBlue/style.qss',
+                  'actionDarkBlueFreeCAD': './css/darkBlue(FreeCAD)/stylesheet.qss',
+                  'actionDarkGreen': './css/darkGreen/darkGreen.qss',
+                  'actionDarkGreenFreeCAD': './css/darkGreen(FreeCAD)/stylesheet.qss',
+                  'actionDarkOrange': './css/darkOrange/darkOrange.qss',
+                  'actionDarkOrangeFreeCAD': './css/darkOrange(FreeCAD)/stylesheet.qss',
+                  'actionLight': './css/light/light.qss',
+                  'actionLightBlueFreeCAD': './css/lightBlue(FreeCAD)/stylesheet.qss',
+                  'actionLightGreenFreeCAD': './css/lightGreen(FreeCAD)/stylesheet.qss',
+                  'actionLightOrangeFreeCAD': './css/lightOrange(FreeCAD)/stylesheet.qss',
+                  'actionMachinery': './css/machinery/machinery.qss',
+                  'actionMinimalist': './css/minimalist/Minimalist.qss',
+                  'actionNightMapping': './css/nightMapping/style.qss',
+                  'actionWombat': './css/wombat/stylesheet.qss',
+                  }
         for i in themes.keys():
             eval('self.{}.setChecked(False)'.format(i))
 
         eval('self.{}.setChecked(True)'.format(theme))
         qss = self.open_qss(themes[theme])
-        self.setStyleSheet(qss)
+        # self.setStyleSheet(qss)
+        app.setStyleSheet(qss)
 
     def open_qss(self, path):
         """
@@ -292,6 +365,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         :return: None
         """
+
+        quit_msg = "This operation will erase all unsaved data. Are you sure you want to open a new file?"
+        reply = QMessageBox.question(self, 'Confirm New File',
+                                     quit_msg, QMessageBox.Yes, QMessageBox.No)
+
+        if reply == QMessageBox.No:
+            return
 
         # Set stories combobox index to 0
         self.storyNumberComboBox.setCurrentIndex(0)
@@ -527,7 +607,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
         :return: None
         """
-        self.fileName = QFileDialog.getSaveFileName(self, 'Salvar como', './save', filter="DynaPy File (*.dpfl)")[0]
+        self.fileName = QFileDialog.getSaveFileName(self, 'Save as', './save', filter="DynaPy File (*.dpfl)")[0]
         if self.fileName == '':
             self.fileName = None
             return
@@ -546,6 +626,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
     def time_step(self):
         self.timeStepDialog = QWidget()
+        self.timeStepDialog.setWindowIcon(QIcon('icon_64.ico'))
         self.timeStepDialog.grid = QGridLayout()
         self.timeStepDialog.label = QLabel('Time step: (s)', self)
         self.timeStepDialog.le = QLineEdit(self)
@@ -572,6 +653,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
     def boundary_conditions(self):
         self.boundaryConditionsDialog = QWidget()
+        self.boundaryConditionsDialog.setWindowIcon(QIcon('icon_64.ico'))
         self.boundaryConditionsDialog.grid = QGridLayout()
         self.boundaryConditionsDialog.label1 = QLabel('Initial displacement: (m)')
         self.boundaryConditionsDialog.label2 = QLabel('Initial velocity: (m/s)')
@@ -605,6 +687,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
     def structure_damping(self):
         self.structureDampingDialog = QWidget()
+        self.structureDampingDialog.setWindowIcon(QIcon('icon_64.ico'))
         self.structureDampingDialog.grid = QGridLayout()
         self.structureDampingDialog.label = QLabel('Structure damping ratio:', self)
         self.structureDampingDialog.le = QLineEdit(self)
@@ -631,6 +714,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
     def fluid_parameters(self):
         self.fluidParametersDialog = QWidget()
+        self.fluidParametersDialog.setWindowIcon(QIcon('icon_64.ico'))
         self.fluidParametersDialog.grid = QGridLayout()
         self.fluidParametersDialog.label1 = QLabel('Specific mass: (kg/m³)')
         self.fluidParametersDialog.label2 = QLabel('Kinetic viscosity: (m²/s)')
@@ -664,6 +748,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
     def dmf_settings(self):
         self.dmfSettingsDialog = QWidget()
+        self.dmfSettingsDialog.setWindowIcon(QIcon('icon_64.ico'))
         self.dmfSettingsDialog.grid = QGridLayout()
         self.dmfSettingsDialog.label1 = QLabel('Discretization points:')
         self.dmfSettingsDialog.label2 = QLabel('Upper limit factor: ')
@@ -707,7 +792,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         if inputData.stories == {} or inputData.excitation is None:
             error04A_title = "Error 04A"
             error04A_msg = "Fill in all data in Structure, TLCD and Excitation tabs before trying" + \
-                          " to calculate dynamic response."
+                           " to calculate dynamic response."
             QMessageBox.warning(self, error04A_title, error04A_msg, QMessageBox.Ok)
         else:
             # Confirm tlcd
@@ -775,7 +860,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
                 naturalFrequencies.append(i.naturalFrequency)
 
             n = inputData.configurations.dmfDiscretizationPoints
-            upperFrequency = inputData.configurations.dmfUpperLimitFactor*max(naturalFrequencies)
+            upperFrequency = inputData.configurations.dmfUpperLimitFactor * max(naturalFrequencies)
             frequencies = np.linspace(0.0001, upperFrequency, n)
 
             def process(signalMessage):
@@ -885,7 +970,6 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             error09_msg = "Remove the last story first."
             QMessageBox.warning(self, error09_title, error09_msg, QMessageBox.Ok)
 
-
     def set_structure_text_change(self):
         i = int(get_text(self.storyNumberComboBox))
         if i <= len(inputData.stories):
@@ -932,9 +1016,13 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
     def import_excitation(self):
         fileName = QFileDialog.getOpenFileName(self, 'Load File', './save/Excitations', filter="Text File (*.txt)")[0]
         self.excitationFileLineEdit.setText(fileName)
+        self.confirmExcitationButton.click()
 
     def generate_excitation(self):
-        pass
+        fileName = get_text(self.excitationFileLineEdit)
+        self.excitationGenerator = ExcitationGenerator(fileName=fileName)
+        self.excitationGenerator.nameSignal.connect(self.excitationFileLineEdit.setText)
+        self.excitationGenerator.nameSignal.connect(self.confirmExcitationButton.click)
 
     def excitation_type_change(self):
         excitationType = get_text(self.excitationTypeComboBox)
@@ -985,7 +1073,10 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
                 self.excitationWidget.excitationCanvas.plot_excitation(tAnly, a)
         elif exct_type == 'General Excitation':
             fileName = get_text(self.excitationFileLineEdit)
-            file = open(fileName, 'r')
+            try:
+                file = open(fileName, 'r')
+            except FileNotFoundError:
+                return
             unit = file.readline()
             lines = int(file.readline())
             g = inputData.configurations.gravity
@@ -1320,7 +1411,9 @@ Gravity acceleration: {} (m/s²)""".format(inputData.configurations.method, inpu
         elif plotType == 'Max. Displacement Vs. Excitation Frequency':
             self.dmfWidget.dmfCanvas.plot_displacement_frequency(outputDMF, plotList)
 
+
 def main():
+    global app
     app = QApplication(sys.argv)
     GUI = MainWindow()
     if debugOption:

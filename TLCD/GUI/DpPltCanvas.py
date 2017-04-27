@@ -97,11 +97,11 @@ class PltCanvas(FigureCanvas):
         self.fig.tight_layout()
         self.draw()
 
-    def plot_excitation(self, t, a):
+    def plot_excitation(self, t, a, unit='m/$s^2$'):
         self.axes.cla()
         self.axes.plot(t, a)
         self.axes.set_xlabel('t (s)')
-        self.axes.set_ylabel(r'a (m/$s^2$)')
+        self.axes.set_ylabel(r'a ({})'.format(unit))
         self.draw()
 
     def plot_dmf(self, outputDMF, plotList):
