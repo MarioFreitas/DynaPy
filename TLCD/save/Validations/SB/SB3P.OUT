@@ -1,0 +1,18 @@
+ SAP2000 v16.0.0 Ultimate (Analysis Build 9138/32)                              
+ File: C:\Users\Admin\Desktop\SB\SB3P.OUT                                       
+                                                                     
+                                                                       
+
+ D I S P L A C E M E N T   D E G R E E S   O F   F R E E D O M
+
+         (A) = Active DOF, equilibrium equation
+         (-) = Restrained DOF, reaction computed
+         (+) = Constrained DOF
+         (>) = External substructure DOF
+         ( ) = Null DOF
+
+  JOINTS              UX  UY  UZ  RX  RY  RZ
+       9               -   -   -   -   -   -
+      10 TO      12    A       A       A    
+      13               -   -   -   -   -   -
+      14 TO      25    A       A       A    

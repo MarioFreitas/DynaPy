@@ -1,3 +1,4 @@
+import sympy
 import numpy as np
 from matplotlib import pyplot as plt
 from DynaPy.TLCD.GUI.DpConfigurations import Configurations
@@ -72,6 +73,9 @@ class ODESolver(object):
 
         self.v = (self.xMais1 - self.xMenos1) / (2 * self.dt)
         self.a = (self.xMais1 - 2 * self.x + self.xMenos1) / (self.dt ** 2)
+
+    def modal_superposition_solver(self):
+        pass
 
     def plot_displacement(self):
         plt.plot(self.t, self.x[0].A1, 'r-')
@@ -239,7 +243,7 @@ def assemble_force_matrix(excitation, mass, configurations):
     elif excitation.type == 'General Excitation':
         a = []
         t0 = 0
-        time = [round(t/step, 0)*step for t in list(totalTimeArray.A1)]
+        time = [round(t / step, 0) * step for t in list(totalTimeArray.A1)]
         for t in time:
             if t in excitation.t_input:
                 t0 = t
@@ -263,6 +267,109 @@ def assemble_force_matrix(excitation, mass, configurations):
         else:
             force = np.concatenate((force, 0. * force[0, :]), 0)
             return force
+
+
+def assemble_modes_matrix(mass, stiffness):
+    M = mass
+    K = stiffness
+
+    x = sympy.Symbol('x')
+
+    D = []
+    for i in range(M.shape[0]):
+        linha = []
+        for j in range(M.shape[1]):
+            linha.append(K[i, j] - M[i, j] * x ** 2)
+
+        D.append(linha)
+
+    D = sympy.Matrix(D)
+
+    Ddet = D.det()
+    eq = sympy.Eq(-1000000000000.0 * x ** 6 + 1.39e+16 * x ** 4 - 4.63704e+19 * x ** 2 + 2.1484952e+22, 0)
+    sol = sympy.solveset(eq, x)
+    freqs = [i for i in sol if i > 0]
+    freqs.sort()
+
+    Di = []
+    for i in range(len(freqs)):
+        Dii = D.subs(x, freqs[i])
+        Dij = []
+        l = list(Dii)
+        for j in range(len(freqs)):
+            Dij.append(l[j * 3:j * 3 + 3])
+        Dii = np.mat(Dij, dtype='float')
+        Di.append(Dii)
+
+    phi = []
+    for i in range(len(freqs)):
+        b = np.zeros(len(freqs) - 1)
+        b[0] = -Di[i][1, 0]
+
+        A = Di[i][1:, 1:]
+        x = np.linalg.solve(A, b)
+        z = np.ones(1)
+        z = np.concatenate((z, x))
+        phi.append(z)
+
+    phi = np.mat(phi).T
+
+    return phi
+
+
+def assemble_modal_mass_vector(modes, mass):
+    phi = modes
+    M = mass
+    n = len(phi[0, :].A1)
+
+    Mi = []
+    for i in range(n):
+        Mi.append(phi[:, i].T * M * phi[:, i])
+
+    return Mi
+
+
+def assemble_modal_stiffness_vector(modes, stiffness):
+    phi = modes
+    K = stiffness
+    n = len(phi[0, :].A1)
+
+    Ki = []
+    for i in range(n):
+        Ki.append(phi[:, i].T * K * phi[:, i])
+
+    return Ki
+
+
+def assemble_modal_force_vector(modes, force_amplitude):
+    phi = modes
+    F = force_amplitude
+    n = len(phi[0, :].A1)
+
+    Fi = []
+    for i in range(n):
+        Fi.append(phi[:, i].T * F)
+
+    return Fi
+
+
+def solve_sdof_system(m, c, k, p0, omega, t_lim, x0=0, v0=0):
+    omega_n = np.sqrt(k / m)
+    ksi = c / (2 * m * omega_n)
+    omega_d = omega_n * np.sqrt(1 - ksi ** 2)
+
+    C = (p0 / k) * (
+        (1 - (omega / omega_n) ** 2) / ((1 - (omega / omega_n) ** 2) ** 2 + (2 * ksi * (omega / omega_n)) ** 2))
+    D = (p0 / k) * (
+        (-2 * ksi * (omega / omega_n)) / ((1 - (omega / omega_n) ** 2) ** 2 + (2 * ksi * (omega / omega_n)) ** 2))
+
+    A = x0 - D  # x(0) = 0
+    B = (v0 + ksi * omega_n * A - omega * C) / omega_d  # x'(0) = 0
+
+    t = np.linspace(0, t_lim, 2000)
+    x = (A * np.cos(omega_d * t) + B * np.sin(omega_d * t)) + C * np.sin(omega * t) + D * np.cos(omega * t)
+
+    return x
 
 
 if __name__ == '__main__':
