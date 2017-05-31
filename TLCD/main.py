@@ -167,11 +167,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionAbout.triggered.connect(self.about)
         self.actionDevelopmentTool.triggered.connect(self.dev_tool)
 
-        # TODO Implement export, optimize and animation actions
-        self.actionExportAnimation.setDisabled(True)
+        # TODO Implement export and optimize actions
         self.actionExportReport.setDisabled(True)
         self.actionOptimization.setDisabled(True)
-        self.actionAnimation.setDisabled(True)
 
         # Structure Canvas
         # self.splitter.setSizes([400, 400])
@@ -422,7 +420,6 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         self.dynRespWidget.dynRespCanvas.reset_canvas()
 
         self.actionExportReport.setDisabled(True)
-        self.actionExportAnimation.setDisabled(True)
 
     def open_file(self, triggered=False, fileName=None):
         """ Calls self.new_file to reset everything. Then, brings a open file dialog box and save the directory to
@@ -929,7 +926,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
         self.devDialog.layout.addWidget(self.devDialog.btn, 2, 1)
         self.devDialog.setLayout(self.devDialog.layout)
 
-        s = 'compare_anal_sol(1)'
+        s = 'compare_anal_sol(3)'
         self.devDialog.textEdit.setText(s)
 
         self.devDialog.show()
@@ -1500,17 +1497,17 @@ def compare_anal_sol(case):
         plt.show()
 
     elif case == 3:
-        M = np.mat([[10000, 0, 0],
-                    [0, 10000, 0],
-                    [0, 0, 10000]])
+        M = outputData.massMatrix
 
-        K = np.mat([[55.6, -27.8, 0],
-                    [-27.8, 55.6, -27.8],
-                    [0, -27.8, 27.8]]) * 1e6
+        ksi = inputData.configurations.dampingRatio
 
-        F = np.mat([[M[0, 0] * 5],
-                    [M[0, 0] * 5],
-                    [M[0, 0] * 5]])
+        K = outputData.stiffnessMatrix
+
+        F0 = inputData.excitation.amplitude
+        omega = inputData.excitation.frequency
+        F = np.mat([[F0 * M[i, i]] for i in range(len(M[0, :].A1))])
+
+        t_lim = inputData.excitation.anlyDuration
 
         phi = assemble_modes_matrix(M, K)
         M_ = assemble_modal_mass_vector(phi, M)
@@ -1519,13 +1516,16 @@ def compare_anal_sol(case):
 
         x_mod_i = []
         for i in range(len(phi[0].A1)):
-            x_mod_i.append(solve_sdof_system(M_[i], 0, K_[i], F_[i], 5, 5))
+            m = float(M_[i].A1)
+            k = float(K_[i].A1)
+            f = float(F_[i].A1)
+            x_mod_i.append(solve_sdof_system(m, ksi, k, f, omega, t_lim))
 
         x_pav_i = []
         for i in range(len(phi[0].A1)):
             x_pav_i.append(sum([j * k for j, k in zip(x_mod_i, phi[i, :].A1)]))
 
-        t = np.linspace(0, 5, 2000)
+        t = np.linspace(0, t_lim, 2000)
 
         with open('./save/Validations/SB/Deslocamentos aceleração na base.txt', 'r') as dados:
             t_sap = []
@@ -1549,9 +1549,9 @@ def compare_anal_sol(case):
 
         t_num = outputData.dynamicResponse.t
         x_num = outputData.dynamicResponse.x[0, :].A1
-        plt.plot(t, x_pav_i[0].A1, '-r', label='Solução Analítica', marker='d')
+        plt.plot(t, x_pav_i[0], '-r', label='Solução Analítica', marker='d')
         plt.plot(t_num, x_num, '-xb', label='Solução Numérica')
-        plt.plot(t_sap[0: len(t_sap)//2], -xpav1_sap[0: len(t_sap)//2], '-sg', label='Solução SAP 2000')
+        # plt.plot(t_sap[0: len(t_sap)//2], -xpav1_sap[0: len(t_sap)//2], '-sg', label='Solução SAP 2000')
         plt.legend()
         plt.title('Deslocamento em Função do Tempo')
         plt.xlabel('t (s)')
