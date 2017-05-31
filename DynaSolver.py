@@ -269,9 +269,14 @@ def assemble_force_matrix(excitation, mass, configurations):
             return force
 
 
-def assemble_modes_matrix(mass, stiffness):
+def get_natural_frequencies_by_modal(mass, stiffness):
+    return assemble_modes_matrix(mass, stiffness, only_frequencies=True)
+
+
+def assemble_modes_matrix(mass, stiffness, return_frequencies=False, only_frequencies=False):
     M = mass
     K = stiffness
+    n = len(M[0, :].A1)
 
     x = sympy.Symbol('x')
 
@@ -286,10 +291,13 @@ def assemble_modes_matrix(mass, stiffness):
     D = sympy.Matrix(D)
 
     Ddet = D.det()
-    eq = sympy.Eq(-1000000000000.0 * x ** 6 + 1.39e+16 * x ** 4 - 4.63704e+19 * x ** 2 + 2.1484952e+22, 0)
+    eq = sympy.Eq(Ddet, 0)
     sol = sympy.solveset(eq, x)
     freqs = [i for i in sol if i > 0]
     freqs.sort()
+
+    if only_frequencies:
+        return freqs
 
     Di = []
     for i in range(len(freqs)):
@@ -297,7 +305,7 @@ def assemble_modes_matrix(mass, stiffness):
         Dij = []
         l = list(Dii)
         for j in range(len(freqs)):
-            Dij.append(l[j * 3:j * 3 + 3])
+            Dij.append(l[j * n:j * n + n])
         Dii = np.mat(Dij, dtype='float')
         Di.append(Dii)
 
@@ -314,7 +322,10 @@ def assemble_modes_matrix(mass, stiffness):
 
     phi = np.mat(phi).T
 
-    return phi
+    if return_frequencies:
+        return phi, freqs
+    else:
+        return phi
 
 
 def assemble_modal_mass_vector(modes, mass):
@@ -353,9 +364,8 @@ def assemble_modal_force_vector(modes, force_amplitude):
     return Fi
 
 
-def solve_sdof_system(m, c, k, p0, omega, t_lim, x0=0, v0=0):
+def solve_sdof_system(m, ksi, k, p0, omega, t_lim, x0=0, v0=0):
     omega_n = np.sqrt(k / m)
-    ksi = c / (2 * m * omega_n)
     omega_d = omega_n * np.sqrt(1 - ksi ** 2)
 
     C = (p0 / k) * (
@@ -367,7 +377,8 @@ def solve_sdof_system(m, c, k, p0, omega, t_lim, x0=0, v0=0):
     B = (v0 + ksi * omega_n * A - omega * C) / omega_d  # x'(0) = 0
 
     t = np.linspace(0, t_lim, 2000)
-    x = (A * np.cos(omega_d * t) + B * np.sin(omega_d * t)) + C * np.sin(omega * t) + D * np.cos(omega * t)
+    x = np.exp(-ksi * omega_n * t) * (A * np.cos(omega_d * t) + B * np.sin(omega_d * t)) + C * np.sin(
+        omega * t) + D * np.cos(omega * t)
 
     return x
 
