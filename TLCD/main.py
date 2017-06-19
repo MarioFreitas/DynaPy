@@ -202,15 +202,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Dynamic Response Canvas
         self.dynRespWidget.dynRespCanvas = PltCanvas()
         self.dynRespWidget.mpl_toolbar = NavigationToolbar(self.dynRespWidget.dynRespCanvas, self)
+        self.dynRespWidget.exportBtn = QPushButton('Export CSV', self)
         self.dynRespWidget.gridLabel = QLabel('Show Grid', self)
         self.dynRespWidget.gridChkBox = QCheckBox(self)
         self.dynRespWidget.gridChkBox.stateChanged.connect(self.dynamic_response_grid_toggle)
+        self.dynRespWidget.exportBtn.clicked.connect(self.dynamic_response_export_csv)
 
         self.dynRespWidget.gridLayout = QGridLayout()
-        self.dynRespWidget.gridLayout.addWidget(self.dynRespWidget.dynRespCanvas, 1, 1, 1, 3)
+        self.dynRespWidget.gridLayout.addWidget(self.dynRespWidget.dynRespCanvas, 1, 1, 1, 4)
         self.dynRespWidget.gridLayout.addWidget(self.dynRespWidget.gridLabel, 2, 1)
         self.dynRespWidget.gridLayout.addWidget(self.dynRespWidget.gridChkBox, 2, 2)
         self.dynRespWidget.gridLayout.addWidget(self.dynRespWidget.mpl_toolbar, 2, 3)
+        self.dynRespWidget.gridLayout.addWidget(self.dynRespWidget.exportBtn, 2, 4)
 
         self.dynRespWidget.setLayout(self.dynRespWidget.gridLayout)
 
@@ -994,6 +997,8 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             self.tlcdStackedWidget.setCurrentIndex(0)
         elif tlcdType == 'Basic TLCD':
             self.tlcdStackedWidget.setCurrentIndex(1)
+        elif tlcdType == 'Pressurized TLCD':
+            self.tlcdStackedWidget.setCurrentIndex(2)
 
     def add_tlcd(self):
         inputData.tlcd = None
@@ -1004,6 +1009,16 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             width = float(get_text(self.widthSimpleTlcdLineEdit)) / 100  # float (cm -> m)
             waterHeight = float(get_text(self.waterLevelSimpleTlcdLineEdit)) / 100  # float (cm -> m)
             tlcd = TLCD(tlcdType, diameter, width, waterHeight, configurations=inputData.configurations)
+            inputData.tlcd = tlcd
+            self.tlcdWidget.tlcdCanvas.painter(inputData.tlcd)
+        elif tlcdType == 'Pressurized TLCD':
+            diameter = float(get_text(self.diameterPressureTlcdLineEdit)) / 100  # float (cm -> m)
+            width = float(get_text(self.widthPressureTlcdLineEdit)) / 100  # float (cm -> m)
+            waterHeight = float(get_text(self.waterLevelPressureTlcdLineEdit)) / 100  # float (cm -> m)
+            gasHeight = float(get_text(self.gasHeightPressureTlcdLineEdit)) / 100  # float (cm -> m)
+            gasPressure = float(get_text(self.gasPressurePressureTlcdLineEdit)) * 101325  # float (atm -> Pa)
+            tlcd = TLCD(tlcdType, diameter, width, waterHeight,
+                        gasHeight=gasHeight, gasPressure=gasPressure, configurations=inputData.configurations)
             inputData.tlcd = tlcd
             self.tlcdWidget.tlcdCanvas.painter(inputData.tlcd)
         else:
@@ -1150,6 +1165,15 @@ Diameter: {} cm
 Water level: {} cm
 Width: {} m""".format(inputData.tlcd.type, inputData.tlcd.diameter * 100,
                       inputData.tlcd.waterHeight * 100, inputData.tlcd.width)
+        elif inputData.tlcd.type == 'Pressurized TLCD':
+            tlcdData = """Model: {}
+Diameter: {} cm
+Water level: {} cm
+Width: {} m
+Gas Height: {} cm
+Gas Pressure: {} atm""".format(inputData.tlcd.type, inputData.tlcd.diameter * 100,
+                               inputData.tlcd.waterHeight * 100, inputData.tlcd.width,
+                               inputData.tlcd.gasHeight * 100, inputData.tlcd.gasPressure / 101325)
 
         h2_exct = 'Excitation'
 
@@ -1269,6 +1293,45 @@ Gravity acceleration: {} (m/s²)""".format(inputData.configurations.method, inpu
         """
         self.dynRespWidget.dynRespCanvas.axes.grid(self.dynRespWidget.gridChkBox.isChecked())
         self.dynRespWidget.dynRespCanvas.draw()
+
+    def dynamic_response_export_csv(self):
+        """ Exports CSV of the plotted data 
+
+        :return: None
+        """
+        dataList = []
+
+        plotList = []
+
+        for i in range(self.list1.count()):
+            self.list1.setCurrentRow(i)
+            item = get_text(self.list1)
+            if not self.list2.findItems(item, Qt.MatchExactly):
+                plotList.append((get_text(self.list1), False))
+            else:
+                plotList.append((get_text(self.list1), True))
+
+        t = outputData.dynamicResponse.t
+        dataList.append(t)
+        for i, j in plotList:
+            if j:
+                if i != 'TLCD':
+                    n = int(i.split('Story ')[1]) - 1
+                    x = outputData.dynamicResponse.x[n, :].A1
+                else:
+                    n = len(plotList) - 1
+                    x = outputData.dynamicResponse.x[n, :].A1
+                dataList.append(list(x))
+
+        dataList = list(zip(*dataList))
+
+        filename = QFileDialog.getSaveFileName(self, 'Save as', './save', filter="CSV File (*.csv)")[0]
+        with open(filename, 'w') as file:
+            for i in dataList:
+                line = str(i)
+                line = line.strip('(')
+                line = line.strip(')')
+                file.write('{}\n'.format(line))
 
     def dynamic_response_add_list1_items(self):
         """ Adds all stories and the TLCD to list 1. Takes from inputData.

@@ -1,5 +1,5 @@
 class Configurations(object):
-    def __init__(self, method='Finite Differences Method', timeStep=0.001,
+    def __init__(self, method='Finite Differences Method', timeStep=0.005,
                  initialDisplacement=0., initialVelocity=0.,
                  dampingRatio=0.02,
                  liquidSpecificMass=998.2071, kineticViscosity=1.003e-6, gravity=9.807,

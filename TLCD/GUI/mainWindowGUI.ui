@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>888</width>
-    <height>577</height>
+    <width>690</width>
+    <height>495</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -271,6 +271,19 @@
             </sizepolicy>
            </property>
            <layout class="QGridLayout" name="gridLayout_4">
+            <item row="2" column="0" colspan="2">
+             <widget class="QPushButton" name="confirmTlcdBtn">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                <horstretch>1</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string>Confirm TLCD</string>
+              </property>
+             </widget>
+            </item>
             <item row="0" column="0">
              <widget class="QLabel" name="label_8">
               <property name="text">
@@ -288,6 +301,11 @@
               <item>
                <property name="text">
                 <string>Basic TLCD</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Pressurized TLCD</string>
                </property>
               </item>
              </widget>
@@ -357,19 +375,80 @@
                 </item>
                </layout>
               </widget>
-             </widget>
-            </item>
-            <item row="2" column="0" colspan="2">
-             <widget class="QPushButton" name="confirmTlcdBtn">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                <horstretch>1</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="text">
-               <string>Confirm TLCD</string>
-              </property>
+              <widget class="QWidget" name="page">
+               <layout class="QGridLayout" name="gridLayout_2">
+                <item row="0" column="0">
+                 <widget class="QLabel" name="label_19">
+                  <property name="text">
+                   <string>Diameter: (cm)</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="0" column="1" colspan="2">
+                 <widget class="QLineEdit" name="diameterPressureTlcdLineEdit">
+                  <property name="placeholderText">
+                   <string>30</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="0">
+                 <widget class="QLabel" name="label_22">
+                  <property name="text">
+                   <string>Water Level: (cm)</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="1" colspan="2">
+                 <widget class="QLineEdit" name="waterLevelPressureTlcdLineEdit">
+                  <property name="placeholderText">
+                   <string>100</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="0">
+                 <widget class="QLabel" name="label_21">
+                  <property name="text">
+                   <string>Width: (cm)</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="1" colspan="2">
+                 <widget class="QLineEdit" name="widthPressureTlcdLineEdit">
+                  <property name="placeholderText">
+                   <string>1000</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="3" column="0" colspan="2">
+                 <widget class="QLabel" name="label_24">
+                  <property name="text">
+                   <string>Gas Height(cm)</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="3" column="2">
+                 <widget class="QLineEdit" name="gasHeightPressureTlcdLineEdit">
+                  <property name="placeholderText">
+                   <string>40</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="4" column="0" colspan="2">
+                 <widget class="QLabel" name="label_23">
+                  <property name="text">
+                   <string>Gas Pressure (atm)</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="4" column="2">
+                 <widget class="QLineEdit" name="gasPressurePressureTlcdLineEdit">
+                  <property name="placeholderText">
+                   <string>3</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
              </widget>
             </item>
            </layout>
@@ -864,7 +943,7 @@ p, li { white-space: pre-wrap; }
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>888</width>
+     <width>690</width>
      <height>21</height>
     </rect>
    </property>

@@ -4,6 +4,7 @@ from DynaPy.TLCD.GUI.DpConfigurations import Configurations
 
 class TLCD(object):
     def __init__(self, tlcdType='Basic TLCD', diameter=0.6, width=20., waterHeight=1.,
+                 gasHeight=0.1, gasPressure=202650,
                  configurations=Configurations(), **kwargs):
         """
         :param tlcdType: str - Type of TLCD to be used on the calculation of TLCD parameters
@@ -29,4 +30,19 @@ class TLCD(object):
             self.length = self.width + 2 * self.waterHeight
             self.mass = pi * ((self.diameter / 2) ** 2) * self.length * self.liquidSpecificMass
             self.dampingCoefficient = 8 * pi * self.length * self.kineticViscosity * self.liquidSpecificMass
-            self.stiffness = pi*(self.diameter**2)*self.liquidSpecificMass*self.gravity/2
+            self.stiffness = pi * (self.diameter ** 2) * self.liquidSpecificMass * self.gravity / 2
+            self.naturalFrequency = (self.stiffness/self.mass)**0.5
+
+        if self.type == 'Pressurized TLCD':
+            self.gasHeight = gasHeight
+            self.gasPressure = gasPressure
+
+            self.length = self.width + 2 * self.waterHeight
+            self.liquidMass = pi * ((self.diameter / 2) ** 2) * self.length * self.liquidSpecificMass
+            self.gasMass = 0
+            self.mass = self.liquidMass + self.gasMass
+            self.dampingCoefficient = 8 * pi * self.length * self.kineticViscosity * self.liquidSpecificMass
+            self.liquidStiffness = pi * (self.diameter ** 2) * self.liquidSpecificMass * self.gravity / 2
+            self.gasStiffness = 1.4 * self.gasPressure / self.gasHeight * pi * (self.diameter ** 2) / 2
+            self.stiffness = self.liquidStiffness + self.gasStiffness
+            self.naturalFrequency = (self.stiffness / self.mass) ** 0.5
