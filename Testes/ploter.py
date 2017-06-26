@@ -14,8 +14,8 @@ def read_csv(filename):
 
         return (x, y)
 
-data1 = read_csv('C:\Python36\Lib\site-packages\DynaPy\TLCD\save\Resultados/Pestana Basic TLCD/sem tlcd.csv')
-data2 = read_csv('C:\Python36\Lib\site-packages\DynaPy\TLCD\save\Resultados/Pestana Basic TLCD/com tlcd.csv')
+data1 = read_csv('C:\Python36\Lib\site-packages\DynaPy\TLCD\save\Resultados/5 story pressure/sem tlcd.csv')
+data2 = read_csv('C:\Python36\Lib\site-packages\DynaPy\TLCD\save\Resultados/5 story pressure/com tlcd.csv')
 
 plt.plot(*data1, label='Without TLCD')
 plt.plot(*data2, label='With TLCD')

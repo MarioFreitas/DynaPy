@@ -126,17 +126,24 @@ def assemble_mass_matrix(stories, tlcd):
         for i in range(n):
             M[i, i] = stories[i + 1].mass
     else:
-        n = len(stories)
+        lastStory = len(stories) - 1
+        n = len(stories) + tlcd.amount
 
-        M = np.mat(np.zeros((n + 1, n + 1)))
+        M = np.mat(np.zeros((n, n)))
 
-        for i in range(n):
+        for i in range(lastStory + 1):
             M[i, i] = stories[i + 1].mass
 
-        M[n - 1, n - 1] += tlcd.mass
-        M[n, n] = tlcd.mass
-        M[n, n - 1] = (tlcd.width / tlcd.length) * tlcd.mass
-        M[n - 1, n] = (tlcd.width / tlcd.length) * tlcd.mass
+        M[lastStory, lastStory] += tlcd.mass * tlcd.amount
+        for i in range(lastStory + 1, n):
+            M[i, i] = tlcd.mass
+            M[i, lastStory] = (tlcd.width / tlcd.length) * tlcd.mass
+            M[lastStory, i] = (tlcd.width / tlcd.length) * tlcd.mass
+
+        # M[n - 1, n - 1] += tlcd.mass
+        # M[n, n] = tlcd.mass
+        # M[n, n - 1] = (tlcd.width / tlcd.length) * tlcd.mass
+        # M[n - 1, n] = (tlcd.width / tlcd.length) * tlcd.mass
 
     return M
 
@@ -156,14 +163,16 @@ def assemble_damping_matrix(stories, tlcd):
         for i in range(n):
             C[i, i] = stories[i + 1].dampingCoefficient
     else:
-        n = len(stories)
+        lastStory = len(stories) - 1
+        n = len(stories) + tlcd.amount
 
-        C = np.mat(np.zeros((n + 1, n + 1)))
+        C = np.mat(np.zeros((n, n)))
 
-        for i in range(n):
+        for i in range(lastStory + 1):
             C[i, i] = stories[i + 1].dampingCoefficient
 
-        C[n, n] = tlcd.dampingCoefficient
+        for i in range(lastStory + 1, n):
+            C[i, i] = tlcd.dampingCoefficient
 
     return C
 
@@ -188,19 +197,21 @@ def assemble_stiffness_matrix(stories, tlcd):
             K[i - 2, i - 1] = -stories[i].stiffness
             K[i - 2, i - 2] += stories[i].stiffness
     else:
-        n = len(stories)
+        lastStory = len(stories) - 1
+        n = len(stories) + tlcd.amount
 
-        K = np.mat(np.zeros((n + 1, n + 1)))
+        K = np.mat(np.zeros((n, n)))
 
-        for i in range(n):
+        for i in range(lastStory + 1):
             K[i, i] = stories[i + 1].stiffness
 
-        for i in range(n, 1, -1):
+        for i in range(lastStory + 1, 1, -1):
             K[i - 1, i - 2] = -stories[i].stiffness
             K[i - 2, i - 1] = -stories[i].stiffness
             K[i - 2, i - 2] += stories[i].stiffness
 
-        K[n, n] = tlcd.stiffness
+        for i in range(lastStory + 1, n):
+            K[i, i] = tlcd.stiffness
 
     return K
 
@@ -209,7 +220,7 @@ def assemble_force_matrix(excitation, mass, configurations):
     """ Function that takes an excitation object, a mass matrix and configurations object to return force vector
     evaluated over time.
 
-    :param excitation: object - Object containing type of excitation and its parameteres (measured by acceleration).
+    :param excitation: object - Object containing type of excitation and its parameters (measured by acceleration).
     :param mass: np.matrix - Mass matrix of any system.
     :param configurations: object - Object containing time step of iterations.
     :return: np.matrix - Force vector evaluated over time.
@@ -222,13 +233,12 @@ def assemble_force_matrix(excitation, mass, configurations):
     if tlcd is None:
         numberOfStories = mass.shape[0]
     else:
-        numberOfStories = mass.shape[0] - 1
+        numberOfStories = mass.shape[0] - tlcd.amount
 
     for i in range(numberOfStories - 1):
         force = np.concatenate((force, 0. * totalTimeArray), 0)
 
     if excitation.type == 'Sine Wave':
-        # TODO check assumptions for excitation of multiple stories
         for i in range(force.shape[0]):
             storyMass = mass[i, i]
             forceAmplitude = storyMass * excitation.amplitude
@@ -238,7 +248,8 @@ def assemble_force_matrix(excitation, mass, configurations):
         if tlcd is None:
             return force
         else:
-            force = np.concatenate((force, 0. * force[0, :]), 0)
+            for i in range(tlcd.amount):
+                force = np.concatenate((force, 0. * force[0, :]), 0)
             return force
     elif excitation.type == 'General Excitation':
         a = []
@@ -265,7 +276,8 @@ def assemble_force_matrix(excitation, mass, configurations):
         if tlcd is None:
             return force
         else:
-            force = np.concatenate((force, 0. * force[0, :]), 0)
+            for i in range(tlcd.amount):
+                force = np.concatenate((force, 0. * force[0, :]), 0)
             return force
 
 
@@ -384,72 +396,23 @@ def solve_sdof_system(m, ksi, k, p0, omega, t_lim, x0=0, v0=0):
 
 
 if __name__ == '__main__':
-    from math import pi
+    from DynaPy.TLCD.GUI.DpTLCD import TLCD
     from DynaPy.TLCD.GUI.DpStory import Story
+    from DynaPy.TLCD.GUI.DpConfigurations import Configurations
+    from DynaPy.TLCD.GUI.DpExcitation import Excitation
 
-    # TODO test same example with assemble functions
-    r = 1
+    np.set_printoptions(linewidth=100, precision=2)
 
-    # TLD Parameters (input parameters) - considering that the tank has appropriate dimensions for sloshing
-    h = 1.0  # TLD height (m)
-    b = 6.0  # TLD length (m)
-    D = 0.9  # TLD diameter (m)
+    stories = {1: Story(), 2: Story(), 3: Story()}
+    tlcd = TLCD(amount=3)
+    excitation = Excitation(relativeFrequency=False, structure=stories, tlcd=tlcd)
 
-    # Structure Parameters (Square cross-section (0.25x0.25) - Concrete)
-    E = 25e9  # Young's Module (Pa)
-    I = (0.25 * 0.25 ** 3) / 12  # Moment of Inertia (m^4)
-    H = 10  # Structure height (m)
-    m_s = 10e3  # Structure Mass (kg)
+    for i in stories.values():
+        i.calc_damping_coefficient(0.02)
 
-    # Other Properties
-    g = 9.807  # Gravity acceleration (m/s2)
-    ro = 998.2071  # Water specific mass (20 °C) (kg/m3)
-    nu = 1.003e-6  # Water kinetic viscosity (20 °C) (m2/s)
+    M = assemble_mass_matrix(stories, tlcd)
+    C = assemble_damping_matrix(stories, tlcd)
+    K = assemble_stiffness_matrix(stories, tlcd)
+    F = assemble_force_matrix(excitation, M, Configurations())
 
-    # TLD Properties (calculated)
-    A = 0.25 * pi * D ** 2
-    L = b + 2 * h
-    m_f = L * A * ro  # (b + 2*h)*(0.25*pi*D**2)*ro
-    c_f = 8 * pi * L * nu * ro
-    k_f = pi * (D ** 2) * ro * g / 2
-    omega_f = np.sqrt((2 * g) / L)
-
-    # Structure Properties
-    k_s = 24 * E * I / (H ** 3)  # Structure Stiffness
-    omega_s = np.sqrt(k_s / (m_s + m_f))  # Structure Natural Frequency of Vibration
-    Cc_s = 2 * (m_s + m_f) * omega_s  # Structure Critical Damping
-    c_s = Cc_s * 0.025  # Structure Damping (2,5% of critical)
-    dtc = min(2 / omega_s, np.pi / (5 * omega_s))  # Critical Time Step (s)
-
-    # m_f = 1e-21
-    # c_f = 1e-21
-    # k_f = 1e-21
-
-    # Mass, Stiffness and Damping matrices (input values for CDM)
-    m = np.mat(([m_s + m_f, (b / L) * m_f], [(b / L) * m_f, m_f]))  # (kg)
-    c = np.mat(([c_s, 0], [0, c_f]))  # (N.s/m)
-    k = np.mat(([k_s, 0], [0, k_f]))  # (N/m)
-
-    # Step size, total time analysed and time vector (plot precision and length configurations)
-    dt = 0.01  # Step size (s)
-    tt = 40  # Total duration (s)
-    t = np.arange(0, tt + dt, dt)  # Time vector used om iterations (s)
-
-    # Quake duration arrays
-    zero = [0. for i in t]  # Null vector for use on directions with {F(t)} = 0
-    tq = 40  # Duration of the quake
-    tq_ar = np.arange(0, tq + dt, dt)  # Quake duration vector
-    zeros_q = np.array(([0. for i in list(range(len(t) - len(tq_ar)))]))  # Null vector for use on t higher than tq
-
-    # Assembly of the force matrix (concatenation of multiple {F(t)} for different times)
-    OMEGA = omega_s * r  # (rad/s)
-    F0 = (m_s + m_f) * (0.10 * g)  # (Acceleration amplitude)/OMEGA**2 (N)
-    F = np.array([F0 * np.sin(OMEGA * i) for i in tq_ar])  # First Part of the quake equation [F1(t)]
-    F = np.append(F, zeros_q)  # Second part of the quake equation [F1(t)] (zeros)
-    F = np.vstack((F, zero))  # Assembly of force vector [[F1(t)],[F2(t)],...,[Fn(t)]]
-    F = np.mat(F)
-
-    config = Configurations(timeStep=dt)
-
-    test_case = ODESolver(m, c, k, F, config)
-    test_case.plot_displacement()
+    print(F)
