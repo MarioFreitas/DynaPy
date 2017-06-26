@@ -19,7 +19,7 @@ class PltCanvas(FigureCanvas):
                                    QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
 
-    def plot_displacement(self, dynamicResponse, plotList):
+    def plot_displacement(self, dynamicResponse, plotList, numberOfStories=1):
         self.axes.cla()
 
         cycol = cycle('brgcmk')
@@ -28,14 +28,15 @@ class PltCanvas(FigureCanvas):
 
         for i, j in plotList:
             if j:
-                if i != 'TLCD':
+                if i[0:4] != 'TLCD':
                     n = int(i.split('Story ')[1]) - 1
                     x = dynamicResponse.x[n, :].A1
                     self.axes.plot(t, x, c=next(cycol), label=i)
                 else:
-                    n = len(plotList) - 1
+                    tlcdNumber = int(i.strip('TLCD '))
+                    n = numberOfStories + tlcdNumber - 1
                     x = dynamicResponse.x[n, :].A1
-                    self.axes.plot(t, x, c=next(cycol), label='TLCD')
+                    self.axes.plot(t, x, c=next(cycol), label='TLCD {}'.format(tlcdNumber))
 
         self.axes.legend(fontsize=11)
         self.axes.set_title('Displacement Vs. Time')

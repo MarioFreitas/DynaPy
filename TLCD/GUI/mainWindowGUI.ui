@@ -21,7 +21,7 @@
     <item row="0" column="0">
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -331,20 +331,6 @@
               </widget>
               <widget class="QWidget" name="page_6">
                <layout class="QGridLayout" name="gridLayout_6">
-                <item row="2" column="1">
-                 <widget class="QLineEdit" name="widthSimpleTlcdLineEdit">
-                  <property name="placeholderText">
-                   <string>1000</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="0" column="0">
-                 <widget class="QLabel" name="label_10">
-                  <property name="text">
-                   <string>Diameter: (cm)</string>
-                  </property>
-                 </widget>
-                </item>
                 <item row="2" column="0">
                  <widget class="QLabel" name="label_12">
                   <property name="text">
@@ -356,6 +342,20 @@
                  <widget class="QLineEdit" name="diameterSimpleTlcdLineEdit">
                   <property name="placeholderText">
                    <string>30</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="1">
+                 <widget class="QLineEdit" name="widthSimpleTlcdLineEdit">
+                  <property name="placeholderText">
+                   <string>1000</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="0" column="0">
+                 <widget class="QLabel" name="label_10">
+                  <property name="text">
+                   <string>Diameter: (cm)</string>
                   </property>
                  </widget>
                 </item>
@@ -373,21 +373,35 @@
                   </property>
                  </widget>
                 </item>
+                <item row="3" column="0">
+                 <widget class="QLabel" name="label_25">
+                  <property name="text">
+                   <string>Amount</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="3" column="1">
+                 <widget class="QLineEdit" name="amountSimpleTlcdLineEdit">
+                  <property name="placeholderText">
+                   <string>1</string>
+                  </property>
+                 </widget>
+                </item>
                </layout>
               </widget>
               <widget class="QWidget" name="page">
                <layout class="QGridLayout" name="gridLayout_2">
-                <item row="0" column="0">
-                 <widget class="QLabel" name="label_19">
-                  <property name="text">
-                   <string>Diameter: (cm)</string>
-                  </property>
-                 </widget>
-                </item>
                 <item row="0" column="1" colspan="2">
                  <widget class="QLineEdit" name="diameterPressureTlcdLineEdit">
                   <property name="placeholderText">
                    <string>30</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="0" column="0">
+                 <widget class="QLabel" name="label_19">
+                  <property name="text">
+                   <string>Diameter: (cm)</string>
                   </property>
                  </widget>
                 </item>
@@ -398,17 +412,17 @@
                   </property>
                  </widget>
                 </item>
+                <item row="3" column="0" colspan="2">
+                 <widget class="QLabel" name="label_24">
+                  <property name="text">
+                   <string>Gas Height(cm)</string>
+                  </property>
+                 </widget>
+                </item>
                 <item row="1" column="1" colspan="2">
                  <widget class="QLineEdit" name="waterLevelPressureTlcdLineEdit">
                   <property name="placeholderText">
                    <string>100</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="2" column="0">
-                 <widget class="QLabel" name="label_21">
-                  <property name="text">
-                   <string>Width: (cm)</string>
                   </property>
                  </widget>
                 </item>
@@ -419,10 +433,10 @@
                   </property>
                  </widget>
                 </item>
-                <item row="3" column="0" colspan="2">
-                 <widget class="QLabel" name="label_24">
+                <item row="2" column="0">
+                 <widget class="QLabel" name="label_21">
                   <property name="text">
-                   <string>Gas Height(cm)</string>
+                   <string>Width: (cm)</string>
                   </property>
                  </widget>
                 </item>
@@ -433,6 +447,13 @@
                   </property>
                  </widget>
                 </item>
+                <item row="4" column="2">
+                 <widget class="QLineEdit" name="gasPressurePressureTlcdLineEdit">
+                  <property name="placeholderText">
+                   <string>3</string>
+                  </property>
+                 </widget>
+                </item>
                 <item row="4" column="0" colspan="2">
                  <widget class="QLabel" name="label_23">
                   <property name="text">
@@ -440,10 +461,17 @@
                   </property>
                  </widget>
                 </item>
-                <item row="4" column="2">
-                 <widget class="QLineEdit" name="gasPressurePressureTlcdLineEdit">
+                <item row="5" column="0">
+                 <widget class="QLabel" name="label_26">
+                  <property name="text">
+                   <string>Amount</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="5" column="2">
+                 <widget class="QLineEdit" name="amountPressureTlcdLineEdit">
                   <property name="placeholderText">
-                   <string>3</string>
+                   <string>1</string>
                   </property>
                  </widget>
                 </item>

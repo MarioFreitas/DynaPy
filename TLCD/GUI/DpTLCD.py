@@ -5,6 +5,7 @@ from DynaPy.TLCD.GUI.DpConfigurations import Configurations
 class TLCD(object):
     def __init__(self, tlcdType='Basic TLCD', diameter=0.6, width=20., waterHeight=1.,
                  gasHeight=0.1, gasPressure=202650,
+                 amount=1,
                  configurations=Configurations(), **kwargs):
         """
         :param tlcdType: str - Type of TLCD to be used on the calculation of TLCD parameters
@@ -22,6 +23,7 @@ class TLCD(object):
         self.liquidSpecificMass = configurations.liquidSpecificMass
         self.kineticViscosity = configurations.kineticViscosity
         self.gravity = configurations.gravity
+        self.amount = amount
 
         for (i, j) in kwargs.items():
             exec('self.{} = {}'.format(i, j))

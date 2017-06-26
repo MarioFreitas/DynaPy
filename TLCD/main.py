@@ -796,7 +796,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             QMessageBox.warning(self, error04A_title, error04A_msg, QMessageBox.Ok)
         else:
             # Confirm tlcd
-            self.add_tlcd()
+            # self.add_tlcd()
 
             # Add the tlcd to the last story
             lastStory = inputData.stories[len(inputData.stories)]
@@ -1008,7 +1008,9 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             diameter = float(get_text(self.diameterSimpleTlcdLineEdit)) / 100  # float (cm -> m)
             width = float(get_text(self.widthSimpleTlcdLineEdit)) / 100  # float (cm -> m)
             waterHeight = float(get_text(self.waterLevelSimpleTlcdLineEdit)) / 100  # float (cm -> m)
-            tlcd = TLCD(tlcdType, diameter, width, waterHeight, configurations=inputData.configurations)
+            amount = int(get_text(self.amountSimpleTlcdLineEdit))
+            tlcd = TLCD(tlcdType, diameter, width, waterHeight,
+                        configurations=inputData.configurations, amount=amount)
             inputData.tlcd = tlcd
             self.tlcdWidget.tlcdCanvas.painter(inputData.tlcd)
         elif tlcdType == 'Pressurized TLCD':
@@ -1017,8 +1019,10 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             waterHeight = float(get_text(self.waterLevelPressureTlcdLineEdit)) / 100  # float (cm -> m)
             gasHeight = float(get_text(self.gasHeightPressureTlcdLineEdit)) / 100  # float (cm -> m)
             gasPressure = float(get_text(self.gasPressurePressureTlcdLineEdit)) * 101325  # float (atm -> Pa)
+            amount = int(get_text(self.amountPressureTlcdLineEdit))
             tlcd = TLCD(tlcdType, diameter, width, waterHeight,
-                        gasHeight=gasHeight, gasPressure=gasPressure, configurations=inputData.configurations)
+                        gasHeight=gasHeight, gasPressure=gasPressure,
+                        configurations=inputData.configurations, amount=amount)
             inputData.tlcd = tlcd
             self.tlcdWidget.tlcdCanvas.painter(inputData.tlcd)
         else:
@@ -1344,7 +1348,8 @@ Gravity acceleration: {} (m/s²)""".format(inputData.configurations.method, inpu
             self.list1.addItem('Story {}'.format(i))
 
         if inputData.tlcd is not None:
-            self.list1.addItem('TLCD')
+            for i in range(inputData.tlcd.amount):
+                self.list1.addItem('TLCD {}'.format(i + 1))
 
     def dynamic_response_add_list2_item(self):
         """ Adds the item selected on list 1 to list 2 without making duplicates. If successfull, advances one row on
@@ -1391,7 +1396,8 @@ Gravity acceleration: {} (m/s²)""".format(inputData.configurations.method, inpu
                 plotList.append((get_text(self.list1), True))
 
         if plotType == 'Displacement Vs. Time':
-            self.dynRespWidget.dynRespCanvas.plot_displacement(outputData.dynamicResponse, plotList)
+            self.dynRespWidget.dynRespCanvas.plot_displacement(outputData.dynamicResponse, plotList,
+                                                               numberOfStories=len(inputData.stories))
         elif plotType == 'Velocity Vs. Time':
             self.dynRespWidget.dynRespCanvas.plot_velocity(outputData.dynamicResponse, plotList)
         elif plotType == 'Acceleration Vs. Time':
@@ -1493,7 +1499,8 @@ def compare_anal_sol(case):
         """
         m = inputData.stories[1].mass
         # c = 0
-        k = 24 * 25e9 * (0.35 * 0.35 ** 3 / 12) / (3 ** 3)  # 24EI/L^3 (engastado-engastado)
+        # k = 24 * 25e9 * (0.35 * 0.35 ** 3 / 12) / (3 ** 3)  # 24EI/L^3 (engastado-engastado)
+        k = inputData.stories[1].stiffness
         # print(m, c, k)
         omega_n = np.sqrt(k / m)
         ksi = inputData.configurations.dampingRatio  # c/(2*m*omega_n)
