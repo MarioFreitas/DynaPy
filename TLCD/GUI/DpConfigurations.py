@@ -2,8 +2,9 @@ class Configurations(object):
     def __init__(self, method='Finite Differences Method', timeStep=0.005,
                  initialDisplacement=0., initialVelocity=0.,
                  dampingRatio=0.02,
-                 liquidSpecificMass=998.2071, kineticViscosity=1.003e-6, gravity=9.807,
-                 dmfDiscretizationPoints=200, dmfUpperLimitFactor=2):
+                 liquidSpecificMass=998.2071, kineticViscosity=1.003e-6, gravity=9.807, pipeRoughness=0.0015e-3,
+                 dmfDiscretizationPoints=200, dmfUpperLimitFactor=2,
+                 nonLinearAnalysis=True):
         """
         :param method: str - ODE solution method to be used by DynaSolver.ODESolver()
         :param timeStep: float - time step between iterations (s)
@@ -23,5 +24,7 @@ class Configurations(object):
         self.liquidSpecificMass = liquidSpecificMass  # Water specific mass (20 °C) (kg/m3)
         self.kineticViscosity = kineticViscosity  # Water kinetic viscosity (20 °C) (m2/s)
         self.gravity = gravity       # Gravity acceleration (m/s2)
+        self.pipeRoughness = pipeRoughness
         self.dmfDiscretizationPoints = dmfDiscretizationPoints
         self.dmfUpperLimitFactor = dmfUpperLimitFactor
+        self.nonLinearAnalysis = nonLinearAnalysis

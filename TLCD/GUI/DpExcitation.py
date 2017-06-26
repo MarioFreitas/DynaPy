@@ -3,7 +3,7 @@ from numpy import sqrt
 
 class Excitation(object):
     def __init__(self, exctType='Sine Wave', amplitude=5., frequency=20.,
-                 relativeFrequency=True, exctDuration=3., anlyDuration=5.,
+                 relativeFrequency=False, exctDuration=3., anlyDuration=5.,
                  structure=None, tlcd=None, t=None, a=None, fileName=None, **kwargs):
         """
         :param exctType: str - Type of excitation to be used by DynaSolver.assemble_force_matrix()

@@ -1,5 +1,6 @@
 from math import pi
 from DynaPy.TLCD.GUI.DpConfigurations import Configurations
+import numpy as np
 
 
 class TLCD(object):
@@ -22,6 +23,8 @@ class TLCD(object):
         self.waterHeight = waterHeight
         self.liquidSpecificMass = configurations.liquidSpecificMass
         self.kineticViscosity = configurations.kineticViscosity
+        self.pipeRoughness = configurations.pipeRoughness
+        self.nonLinearAnalysis = configurations.nonLinearAnalysis
         self.gravity = configurations.gravity
         self.amount = amount
 
@@ -31,9 +34,12 @@ class TLCD(object):
         if self.type == 'Basic TLCD':
             self.length = self.width + 2 * self.waterHeight
             self.mass = pi * ((self.diameter / 2) ** 2) * self.length * self.liquidSpecificMass
-            self.dampingCoefficient = 8 * pi * self.length * self.kineticViscosity * self.liquidSpecificMass
             self.stiffness = pi * (self.diameter ** 2) * self.liquidSpecificMass * self.gravity / 2
-            self.naturalFrequency = (self.stiffness/self.mass)**0.5
+            self.naturalFrequency = (self.stiffness / self.mass) ** 0.5
+            if self.nonLinearAnalysis:
+                self.dampingCoefficient = pi * self.length * self.diameter * self.liquidSpecificMass / 8
+            else:
+                self.dampingCoefficient = 8 * pi * self.length * self.kineticViscosity * self.liquidSpecificMass
 
         if self.type == 'Pressurized TLCD':
             self.gasHeight = gasHeight
@@ -43,8 +49,41 @@ class TLCD(object):
             self.liquidMass = pi * ((self.diameter / 2) ** 2) * self.length * self.liquidSpecificMass
             self.gasMass = 0
             self.mass = self.liquidMass + self.gasMass
-            self.dampingCoefficient = 8 * pi * self.length * self.kineticViscosity * self.liquidSpecificMass
             self.liquidStiffness = pi * (self.diameter ** 2) * self.liquidSpecificMass * self.gravity / 2
             self.gasStiffness = 1.4 * self.gasPressure / self.gasHeight * pi * (self.diameter ** 2) / 2
             self.stiffness = self.liquidStiffness + self.gasStiffness
             self.naturalFrequency = (self.stiffness / self.mass) ** 0.5
+            if self.nonLinearAnalysis:
+                self.dampingCoefficient = pi * self.length * self.diameter * self.liquidSpecificMass / 8
+            else:
+                self.dampingCoefficient = 8 * pi * self.length * self.kineticViscosity * self.liquidSpecificMass
+
+        # self.change_damping()
+
+    def calculate_reynolds(self, velocity):
+        return velocity * self.diameter / self.kineticViscosity
+
+    def calculate_friction_factor(self, velocity):
+        if velocity == 0.:
+            return 0
+
+        Re = self.calculate_reynolds(velocity)
+        k = self.pipeRoughness
+        D = self.diameter
+
+        b = (k / (3.7 * D) - (5.16 / Re) * np.log10((k / 3.7 * D) + (5.09 / (Re ** 0.87))))
+
+        if b < 0:
+            return 0
+
+        a = -2 * np.log10(b)
+        f = (1 / a) ** 2
+        return f
+
+    def calculate_damping_correction_factor(self, velocity):
+        f = self.calculate_friction_factor(velocity)
+        return f*velocity
+        # return velocity
+
+    def change_damping(self):
+        self.dampingCoefficient = 0.5*self.liquidSpecificMass*(0.25*pi*self.diameter**2)*9

@@ -55,7 +55,7 @@ class RunSimulationThread(QThread):
         stiffness = assemble_stiffness_matrix(self.inputData.stories, self.inputData.tlcd)
         force = assemble_force_matrix(self.inputData.excitation, mass, self.inputData.configurations)
 
-        outputData_ = OutputData(mass, damping, stiffness, force, self.inputData.configurations)
+        outputData_ = OutputData(mass, damping, stiffness, force, self.inputData.configurations, self.inputData.tlcd)
         self.mySignal.emit(outputData_)
 
 
@@ -96,7 +96,7 @@ class RunSetOfSimulationsThread(QThread):
 
         force = assemble_force_matrix(inputData_.excitation, self.mass, inputData_.configurations)
 
-        outputData_ = OutputData(self.mass, self.damping, self.stiffness, force, inputData_.configurations)
+        outputData_ = OutputData(self.mass, self.damping, self.stiffness, force, inputData_.configurations, inputData_.tlcd)
         return [outputData_.maxDisplacement, outputData_.DMF]
 
 

@@ -3,7 +3,7 @@ from DynaPy.DynaSolver import ODESolver
 
 
 class OutputData(object):
-    def __init__(self, massMatrix, dampingMatrix, stiffnessMatrix, forceMatrix, configurations):
+    def __init__(self, massMatrix, dampingMatrix, stiffnessMatrix, forceMatrix, configurations, tlcd):
         """
         :param massMatrix: np.matrix - Any n by n sized mass matrix
         :param dampingMatrix: np.matrix - Any n by n sized damping matrix
@@ -18,7 +18,7 @@ class OutputData(object):
         self.forceMatrix = forceMatrix
 
         self.dynamicResponse = ODESolver(self.massMatrix, self.dampingMatrix, self.stiffnessMatrix, self.forceMatrix,
-                                         configurations)
+                                         configurations, tlcd)
         self.calc_dmf()
 
     def calc_dmf(self):

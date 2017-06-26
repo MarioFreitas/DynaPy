@@ -2,10 +2,11 @@ import sympy
 import numpy as np
 from matplotlib import pyplot as plt
 from DynaPy.TLCD.GUI.DpConfigurations import Configurations
+from copy import copy
 
 
 class ODESolver(object):
-    def __init__(self, mass, damping, stiffness, force, configurations=Configurations()):
+    def __init__(self, mass, damping, stiffness, force, configurations=Configurations(), tlcd=None):
         """ ODE solver for dynamics problems.
 
         :param mass: np.matrix - Mass matrix including structure and damper masses.
@@ -28,9 +29,13 @@ class ODESolver(object):
         self.stiffness = stiffness
         self.force = force
         self.configurations = configurations
+        self.tlcd = tlcd
 
         if configurations.method == 'Finite Differences Method':
-            self.fdm_solver()
+            if configurations.nonLinearAnalysis and (self.tlcd is not None):
+                self.fdm_solver_non_linear()
+            else:
+                self.fdm_solver()
 
     def unpack(self):
         self.M = self.mass
@@ -64,6 +69,51 @@ class ODESolver(object):
         self.x[:, 1] = self.gamma.I * (self.F[:, 0] - self.beta * self.x[:, 0] - self.alpha * self.xm1)
 
         for i in list(range(1, len(self.t[1:]))):
+            self.x[:, i + 1] = self.gamma.I * (self.F[:, i] - self.beta * self.x[:, i] - self.alpha * self.x[:, i - 1])
+
+        i = len(self.t[1:])
+        self.xM1 = self.gamma.I * (self.F[:, i] - self.beta * self.x[:, i] - self.alpha * self.x[:, i - 1])
+        self.xMais1 = np.concatenate((self.x[:, 1:], self.xM1), axis=1)
+        self.xMenos1 = np.concatenate((self.xm1, self.x[:, 0:-1]), axis=1)
+
+        self.v = (self.xMais1 - self.xMenos1) / (2 * self.dt)
+        self.a = (self.xMais1 - 2 * self.x + self.xMenos1) / (self.dt ** 2)
+
+    def fdm_solver_non_linear(self):
+        self.unpack()
+
+        C_original = copy(self.C)
+        correctionStart = self.C.shape[1] - 1
+        correctionStop = correctionStart - self.tlcd.amount
+        self.dampingVelocityArray = copy(self.v[-1, :])
+
+        velocity = self.dampingVelocityArray[0, 0]
+
+        correctionFactor = self.tlcd.calculate_damping_correction_factor(velocity)
+        for i in range(correctionStart, correctionStop, -1):
+            self.C[i, i] *= correctionFactor
+
+        self.alpha = (self.M / (self.dt ** 2) - self.C / (2 * self.dt))
+        self.beta = (self.K - 2 * self.M / (self.dt ** 2))
+        self.gamma = (self.M / (self.dt ** 2) + self.C / (2 * self.dt))
+
+        self.xm1 = self.x[:, 0] - self.v[:, 0] * self.dt + (self.a[:, 0] * self.dt ** 2) / 2
+        self.x[:, 1] = self.gamma.I * (self.F[:, 0] - self.beta * self.x[:, 0] - self.alpha * self.xm1)
+
+        for i in list(range(1, len(self.t[1:]))):
+            if i >= 2:
+                self.C = copy(C_original)
+                self.dampingVelocityArray[0, i + 1] = (self.x[-1, i-2] - self.x[-1, i]) / (2 * self.dt)
+                velocity = abs(self.dampingVelocityArray[0, i + 1])
+
+                correctionFactor = self.tlcd.calculate_damping_correction_factor(velocity)
+                for j in range(correctionStart, correctionStop, -1):
+                    self.C[j, j] *= correctionFactor
+
+                self.alpha = (self.M / (self.dt ** 2) - self.C / (2 * self.dt))
+                self.beta = (self.K - 2 * self.M / (self.dt ** 2))
+                self.gamma = (self.M / (self.dt ** 2) + self.C / (2 * self.dt))
+
             self.x[:, i + 1] = self.gamma.I * (self.F[:, i] - self.beta * self.x[:, i] - self.alpha * self.x[:, i - 1])
 
         i = len(self.t[1:])
@@ -400,19 +450,72 @@ if __name__ == '__main__':
     from DynaPy.TLCD.GUI.DpStory import Story
     from DynaPy.TLCD.GUI.DpConfigurations import Configurations
     from DynaPy.TLCD.GUI.DpExcitation import Excitation
+    from matplotlib import pyplot as plt
 
     np.set_printoptions(linewidth=100, precision=2)
 
-    stories = {1: Story(), 2: Story(), 3: Story()}
-    tlcd = TLCD(amount=3)
-    excitation = Excitation(relativeFrequency=False, structure=stories, tlcd=tlcd)
+    dt = 0.001
+    frequency = 3.8
+    tt = 50
+
+    diameter = 0.1
+    width = 1
+    waterHeight = 0.2
+    amount = 3
+
+    height = 10.
+
+    config_linear = Configurations(nonLinearAnalysis=False, timeStep=dt)
+    config_nonlinear = Configurations(nonLinearAnalysis=True, timeStep=dt)
+
+    stories = {1: Story(height=height), 2: Story(height=height), 3: Story(height=height)}
+    tlcd_linear = TLCD(diameter=diameter, width=width, waterHeight=waterHeight,
+                       amount=amount, configurations=config_linear)
+    excitation_linear = Excitation(frequency=frequency, structure=stories, tlcd=tlcd_linear,
+                                   exctDuration=tt, anlyDuration=tt)
 
     for i in stories.values():
         i.calc_damping_coefficient(0.02)
 
-    M = assemble_mass_matrix(stories, tlcd)
-    C = assemble_damping_matrix(stories, tlcd)
-    K = assemble_stiffness_matrix(stories, tlcd)
-    F = assemble_force_matrix(excitation, M, Configurations())
+    M_linear = assemble_mass_matrix(stories, tlcd_linear)
+    C_linear = assemble_damping_matrix(stories, tlcd_linear)
+    K_linear = assemble_stiffness_matrix(stories, tlcd_linear)
+    F_linear = assemble_force_matrix(excitation_linear, M_linear, config_linear)
+    dynamicResponse_linear = ODESolver(M_linear, C_linear, K_linear, F_linear,
+                                       configurations=config_linear, tlcd=tlcd_linear)
 
-    print(F)
+    tlcd_nonlinear = TLCD(diameter=diameter, width=width, waterHeight=waterHeight,
+                          amount=amount, configurations=config_nonlinear)
+    excitation_nonlinear = Excitation(frequency=frequency, structure=stories, tlcd=tlcd_nonlinear,
+                                      exctDuration=tt, anlyDuration=tt)
+
+    for i in stories.values():
+        i.calc_damping_coefficient(0.02)
+
+    M_nonlinear = assemble_mass_matrix(stories, tlcd_nonlinear)
+    C_nonlinear = assemble_damping_matrix(stories, tlcd_nonlinear)
+    K_nonlinear = assemble_stiffness_matrix(stories, tlcd_nonlinear)
+    F_nonlinear = assemble_force_matrix(excitation_nonlinear, M_nonlinear, config_nonlinear)
+    dynamicResponse_nonlinear = ODESolver(M_nonlinear, C_nonlinear, K_nonlinear, F_nonlinear,
+                                          configurations=config_nonlinear, tlcd=tlcd_nonlinear)
+
+    t = dynamicResponse_nonlinear.t
+    vc = -dynamicResponse_nonlinear.dampingVelocityArray[-1, :].A1
+    vd = dynamicResponse_nonlinear.v[-1, :].A1
+    vl = dynamicResponse_linear.v[-1, :].A1
+
+    plt.plot(t, vl, '--', c='g', label='Velocidade Linear')
+    plt.plot(t, vc, '--', c='b', label='Velocidade De Correção')
+    plt.plot(t, vd, '.-', c='r', label='Velocidade De Deslocamento')
+    plt.grid()
+    plt.legend()
+
+    plt.figure()
+    xd = dynamicResponse_nonlinear.x[-1, :].A1
+    xl = dynamicResponse_linear.x[-1, :].A1
+    plt.plot(t, xl, '--', c='g', label='Deslocamento Linear')
+    plt.plot(t, xd, '.-', c='r', label='Deslocamento Não Linear')
+    plt.grid()
+    plt.legend()
+
+    plt.show()
