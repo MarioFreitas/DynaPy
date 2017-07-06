@@ -6,7 +6,7 @@ import numpy as np
 class TLCD(object):
     def __init__(self, tlcdType='Basic TLCD', diameter=0.6, width=20., waterHeight=1.,
                  gasHeight=0.1, gasPressure=202650,
-                 amount=1,
+                 amount=1, contraction=1,
                  configurations=Configurations(), **kwargs):
         """
         :param tlcdType: str - Type of TLCD to be used on the calculation of TLCD parameters
@@ -27,9 +27,12 @@ class TLCD(object):
         self.nonLinearAnalysis = configurations.nonLinearAnalysis
         self.gravity = configurations.gravity
         self.amount = amount
+        self.contraction = contraction
 
         for (i, j) in kwargs.items():
             exec('self.{} = {}'.format(i, j))
+
+        self.area = 0.25 * pi * self.diameter ** 2
 
         if self.type == 'Basic TLCD':
             self.length = self.width + 2 * self.waterHeight
@@ -58,7 +61,7 @@ class TLCD(object):
             else:
                 self.dampingCoefficient = 8 * pi * self.length * self.kineticViscosity * self.liquidSpecificMass
 
-        # self.change_damping()
+        self.contracionDampingConstant = self.calculate_contraction_damping_constant()
 
     def calculate_reynolds(self, velocity):
         return velocity * self.diameter / self.kineticViscosity
@@ -82,8 +85,10 @@ class TLCD(object):
 
     def calculate_damping_correction_factor(self, velocity):
         f = self.calculate_friction_factor(velocity)
-        return f*velocity
-        # return velocity
+        return f * velocity
 
-    def change_damping(self):
-        self.dampingCoefficient = 0.5*self.liquidSpecificMass*(0.25*pi*self.diameter**2)*9
+    def calculate_contraction_damping_constant(self):
+        return 0.5 * self.liquidSpecificMass * self.area * (1 / self.contraction - 1) ** 2
+
+    def calculate_contraction_damping(self, velocity):
+        return self.contracionDampingConstant * velocity

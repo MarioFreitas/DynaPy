@@ -107,8 +107,10 @@ class ODESolver(object):
                 velocity = abs(self.dampingVelocityArray[0, i + 1])
 
                 correctionFactor = self.tlcd.calculate_damping_correction_factor(velocity)
+                contractionDampingCoefficient = self.tlcd.calculate_contraction_damping(velocity)
                 for j in range(correctionStart, correctionStop, -1):
                     self.C[j, j] *= correctionFactor
+                    self.C[j, j] += contractionDampingCoefficient
 
                 self.alpha = (self.M / (self.dt ** 2) - self.C / (2 * self.dt))
                 self.beta = (self.K - 2 * self.M / (self.dt ** 2))

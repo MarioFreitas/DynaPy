@@ -1009,8 +1009,14 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             width = float(get_text(self.widthSimpleTlcdLineEdit)) / 100  # float (cm -> m)
             waterHeight = float(get_text(self.waterLevelSimpleTlcdLineEdit)) / 100  # float (cm -> m)
             amount = int(get_text(self.amountSimpleTlcdLineEdit))
+            contraction = float(get_text(self.contractionSimpleTlcdLineEdit))
+            if contraction == 0:
+                error14_title = "Error 14"
+                error14_msg = "Coefficient of contraction cannot be zero."
+                QMessageBox.warning(self, error14_title, error14_msg, QMessageBox.Ok)
+                return
             tlcd = TLCD(tlcdType, diameter, width, waterHeight,
-                        configurations=inputData.configurations, amount=amount)
+                        configurations=inputData.configurations, amount=amount, contraction=contraction)
             inputData.tlcd = tlcd
             self.tlcdWidget.tlcdCanvas.painter(inputData.tlcd)
         elif tlcdType == 'Pressurized TLCD':
@@ -1020,9 +1026,15 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             gasHeight = float(get_text(self.gasHeightPressureTlcdLineEdit)) / 100  # float (cm -> m)
             gasPressure = float(get_text(self.gasPressurePressureTlcdLineEdit)) * 101325  # float (atm -> Pa)
             amount = int(get_text(self.amountPressureTlcdLineEdit))
+            contraction = float(get_text(self.contractionPressureTlcdLineEdit))
+            if contraction == 0:
+                error14_title = "Error 14"
+                error14_msg = "Coefficient of contraction cannot be zero."
+                QMessageBox.warning(self, error14_title, error14_msg, QMessageBox.Ok)
+                return
             tlcd = TLCD(tlcdType, diameter, width, waterHeight,
                         gasHeight=gasHeight, gasPressure=gasPressure,
-                        configurations=inputData.configurations, amount=amount)
+                        configurations=inputData.configurations, amount=amount, contraction=contraction)
             inputData.tlcd = tlcd
             self.tlcdWidget.tlcdCanvas.painter(inputData.tlcd)
         else:
