@@ -1,8 +1,8 @@
-import sympy
-import numpy as np
-from matplotlib import pyplot as plt
-from DynaPy.TLCD.GUI.DpConfigurations import Configurations
 from copy import copy
+
+from DynaPy.libs.DpConfigurations import Configurations
+import numpy as np
+import sympy
 
 
 class ODESolver(object):
@@ -448,10 +448,10 @@ def solve_sdof_system(m, ksi, k, p0, omega, t_lim, x0=0, v0=0):
 
 
 if __name__ == '__main__':
-    from DynaPy.TLCD.GUI.DpTLCD import TLCD
-    from DynaPy.TLCD.GUI.DpStory import Story
-    from DynaPy.TLCD.GUI.DpConfigurations import Configurations
-    from DynaPy.TLCD.GUI.DpExcitation import Excitation
+    from DynaPy import TLCD
+    from DynaPy import Story
+    from libs.DpConfigurations import Configurations
+    from libs.DpExcitation import Excitation
     from matplotlib import pyplot as plt
 
     np.set_printoptions(linewidth=100, precision=2)

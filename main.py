@@ -7,29 +7,28 @@ It utilises PyQt5 as the GUI framework.
 This is the main script of the project and will be used to generate the .exe file for
 distribution.
 """
+import os
+import re
+import sys
+
+from DynaPy.libs.DpConfigurations import Configurations
+from DynaPy.libs.DpInputData import InputData
+from DynaPy.libs.DpOutputDMF import OutputDMF
+from DynaPy.libs.DpOutputData import OutputData
+from DynaPy.libs.DpPltCanvas import PltCanvas
+from DynaPy.libs.DpStory import Story
+from DynaPy.libs.DpStructureCanvas import StructureCanvas
+from DynaPy.libs.DpTLCD import TLCD
+from DynaPy.libs.DpTLCDCanvas import TLCDCanvas
+from DynaPy.libs.DpExcitation import Excitation
+from DynaPy.GUI.mainWindowGUI import Ui_MainWindow
+from DynaPy.excitationGenerator import MainWindow as ExcitationGenerator
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+from libs.DynaSolver import *
+from libs.lib import get_text
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
-import numpy as np
-import sys
-import re
-import os
-from DynaPy.TLCD.GUI.mainWindowGUI import Ui_MainWindow
-from DynaPy.TLCD.GUI.DpInputData import InputData
-from DynaPy.TLCD.GUI.DpConfigurations import Configurations
-from DynaPy.TLCD.GUI.DpOutputData import OutputData
-from DynaPy.TLCD.GUI.DpOutputDMF import OutputDMF
-from DynaPy.TLCD.GUI.DpStory import Story
-from DynaPy.TLCD.GUI.DpTLCD import TLCD
-from DynaPy.TLCD.GUI.DpExcitation import Excitation
-from DynaPy.TLCD.GUI.DpPltCanvas import PltCanvas
-from DynaPy.TLCD.GUI.DpStructureCanvas import StructureCanvas
-from DynaPy.TLCD.GUI.DpTLCDCanvas import TLCDCanvas
-from DynaPy.TLCD.GUI.DpAnimationCanvas import AnimationCanvas
-from DynaPy.TLCD.excitationGenerator import MainWindow as ExcitationGenerator
-from DynaPy.lib import get_text
-from DynaPy.DynaSolver import *
 
 inputData = InputData()
 inputData.configurations = Configurations()
@@ -116,7 +115,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # Setup GUI
         self.setupUi(self)
-        self.setWindowIcon(QIcon('icon_64.ico'))
+        self.setWindowIcon(QIcon('./img/icon_64.ico'))
         self.setGeometry(100, 100, 800, 600)
         self.statusBar()
         self.dark_blue_theme()
@@ -315,25 +314,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.check_theme('actionWombat')
 
     def check_theme(self, theme):
-        themes = {'actionAqua': './css/aqua/aqua.qss',
-                  'actionBasicWhite': './css/basicWhite/basicWhite.qss',
-                  'actionBlueGlass': './css/blueGlass/blueGlass.qss',
-                  'actionDarcula': './css/darcula/darcula.qss',
-                  'actionDark': './css/dark/darkstyle.qss',
-                  'actionDarkBlue': './css/darkBlue/style.qss',
-                  'actionDarkBlueFreeCAD': './css/darkBlue(FreeCAD)/stylesheet.qss',
-                  'actionDarkGreen': './css/darkGreen/darkGreen.qss',
-                  'actionDarkGreenFreeCAD': './css/darkGreen(FreeCAD)/stylesheet.qss',
-                  'actionDarkOrange': './css/darkOrange/darkOrange.qss',
-                  'actionDarkOrangeFreeCAD': './css/darkOrange(FreeCAD)/stylesheet.qss',
-                  'actionLight': './css/light/light.qss',
-                  'actionLightBlueFreeCAD': './css/lightBlue(FreeCAD)/stylesheet.qss',
-                  'actionLightGreenFreeCAD': './css/lightGreen(FreeCAD)/stylesheet.qss',
-                  'actionLightOrangeFreeCAD': './css/lightOrange(FreeCAD)/stylesheet.qss',
-                  'actionMachinery': './css/machinery/machinery.qss',
-                  'actionMinimalist': './css/minimalist/Minimalist.qss',
-                  'actionNightMapping': './css/nightMapping/style.qss',
-                  'actionWombat': './css/wombat/stylesheet.qss',
+        themes = {'actionAqua': './GUI/css/aqua/aqua.qss',
+                  'actionBasicWhite': './GUI/css/basicWhite/basicWhite.qss',
+                  'actionBlueGlass': './GUI/css/blueGlass/blueGlass.qss',
+                  'actionDarcula': './GUI/css/darcula/darcula.qss',
+                  'actionDark': './GUI/css/dark/darkstyle.qss',
+                  'actionDarkBlue': './GUI/css/darkBlue/style.qss',
+                  'actionDarkBlueFreeCAD': './GUI/css/darkBlue(FreeCAD)/stylesheet.qss',
+                  'actionDarkGreen': './GUI/css/darkGreen/darkGreen.qss',
+                  'actionDarkGreenFreeCAD': './GUI/css/darkGreen(FreeCAD)/stylesheet.qss',
+                  'actionDarkOrange': './GUI/css/darkOrange/darkOrange.qss',
+                  'actionDarkOrangeFreeCAD': './GUI/css/darkOrange(FreeCAD)/stylesheet.qss',
+                  'actionLight': './GUI/css/light/light.qss',
+                  'actionLightBlueFreeCAD': './GUI/css/lightBlue(FreeCAD)/stylesheet.qss',
+                  'actionLightGreenFreeCAD': './GUI/css/lightGreen(FreeCAD)/stylesheet.qss',
+                  'actionLightOrangeFreeCAD': './GUI/css/lightOrange(FreeCAD)/stylesheet.qss',
+                  'actionMachinery': './GUI/css/machinery/machinery.qss',
+                  'actionMinimalist': './GUI/css/minimalist/Minimalist.qss',
+                  'actionNightMapping': './GUI/css/nightMapping/style.qss',
+                  'actionWombat': './GUI/css/wombat/stylesheet.qss',
                   }
         for i in themes.keys():
             eval('self.{}.setChecked(False)'.format(i))
@@ -626,7 +625,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
     def time_step(self):
         self.timeStepDialog = QWidget()
-        self.timeStepDialog.setWindowIcon(QIcon('icon_64.ico'))
+        self.timeStepDialog.setWindowIcon(QIcon('./img/icon_64.ico'))
         self.timeStepDialog.grid = QGridLayout()
         self.timeStepDialog.label = QLabel('Time step: (s)', self)
         self.timeStepDialog.le = QLineEdit(self)
@@ -653,7 +652,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
     def boundary_conditions(self):
         self.boundaryConditionsDialog = QWidget()
-        self.boundaryConditionsDialog.setWindowIcon(QIcon('icon_64.ico'))
+        self.boundaryConditionsDialog.setWindowIcon(QIcon('./img/icon_64.ico'))
         self.boundaryConditionsDialog.grid = QGridLayout()
         self.boundaryConditionsDialog.label1 = QLabel('Initial displacement: (m)')
         self.boundaryConditionsDialog.label2 = QLabel('Initial velocity: (m/s)')
@@ -687,7 +686,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
     def structure_damping(self):
         self.structureDampingDialog = QWidget()
-        self.structureDampingDialog.setWindowIcon(QIcon('icon_64.ico'))
+        self.structureDampingDialog.setWindowIcon(QIcon('./img/icon_64.ico'))
         self.structureDampingDialog.grid = QGridLayout()
         self.structureDampingDialog.label = QLabel('Structure damping ratio:', self)
         self.structureDampingDialog.le = QLineEdit(self)
@@ -714,7 +713,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
     def fluid_parameters(self):
         self.fluidParametersDialog = QWidget()
-        self.fluidParametersDialog.setWindowIcon(QIcon('icon_64.ico'))
+        self.fluidParametersDialog.setWindowIcon(QIcon('./img/icon_64.ico'))
         self.fluidParametersDialog.grid = QGridLayout()
         self.fluidParametersDialog.label1 = QLabel('Specific mass: (kg/m³)')
         self.fluidParametersDialog.label2 = QLabel('Kinetic viscosity: (m²/s)')
@@ -748,7 +747,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
     def dmf_settings(self):
         self.dmfSettingsDialog = QWidget()
-        self.dmfSettingsDialog.setWindowIcon(QIcon('icon_64.ico'))
+        self.dmfSettingsDialog.setWindowIcon(QIcon('./img/icon_64.ico'))
         self.dmfSettingsDialog.grid = QGridLayout()
         self.dmfSettingsDialog.label1 = QLabel('Discretization points:')
         self.dmfSettingsDialog.label2 = QLabel('Upper limit factor: ')
@@ -1080,7 +1079,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
 
             if (relativeFrequency == True) and (inputData.stories == {}):
                 error01_title = "Error 01"
-                error01_msg = "Structure and TLCD must be added before adding excitation with realtive frequency."
+                error01_msg = "Structure and TLCD must be added before adding excitation with relative frequency."
                 QMessageBox.warning(self, error01_title, error01_msg, QMessageBox.Ok)
             elif anlyDuration < exctDuration:
                 error02_title = "Error 02"
@@ -1562,8 +1561,6 @@ def compare_anal_sol(case):
         force = assemble_force_matrix(inputData.excitation, mass, inputData.configurations)
 
         outputData_ = OutputData(mass, damping, stiffness, force, inputData.configurations)
-
-        from matplotlib.figure import Figure
 
         t_num = outputData_.dynamicResponse.t
         x_num = outputData_.dynamicResponse.x[3, :].A1

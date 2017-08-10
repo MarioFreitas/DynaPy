@@ -1,6 +1,7 @@
 from math import pi
-from DynaPy.TLCD.GUI.DpConfigurations import Configurations
+
 import numpy as np
+from DynaPy.libs.DpConfigurations import Configurations
 
 
 class TLCD(object):

@@ -1,6 +1,4 @@
-import numpy as np
-from matplotlib import pyplot as plt
-from DynaPy.DynaSolver import *
+from libs.DynaSolver import *
 
 M = np.mat([[10000, 0, 0],
             [0, 10000, 0],

@@ -1,12 +1,13 @@
+import sys
+
+import numpy as np
+from DynaPy.libs.DpPltCanvas import PltCanvas
+from DynaPy.GUI.excitationGeneratorGUI import Ui_MainWindow
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+from libs.lib import get_text
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
-import numpy as np
-from DynaPy.TLCD.GUI.excitationGeneratorGUI import Ui_MainWindow
-from DynaPy.TLCD.GUI.DpPltCanvas import PltCanvas
-import sys
-from DynaPy.lib import get_text
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
