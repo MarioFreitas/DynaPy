@@ -1338,7 +1338,7 @@ Gravity acceleration: {} (m/s²)""".format(inputData.configurations.method, inpu
         dataList.append(t)
         for i, j in plotList:
             if j:
-                if i != 'TLCD':
+                if not ('TLCD' in i):
                     n = int(i.split('Story ')[1]) - 1
                     x = outputData.dynamicResponse.x[n, :].A1
                 else:
@@ -1349,12 +1349,13 @@ Gravity acceleration: {} (m/s²)""".format(inputData.configurations.method, inpu
         dataList = list(zip(*dataList))
 
         filename = QFileDialog.getSaveFileName(self, 'Save as', './save', filter="CSV File (*.csv)")[0]
-        with open(filename, 'w') as file:
-            for i in dataList:
-                line = str(i)
-                line = line.strip('(')
-                line = line.strip(')')
-                file.write('{}\n'.format(line))
+        if filename != '': 
+            with open(filename, 'w') as file:
+                for i in dataList:
+                    line = str(i)
+                    line = line.strip('(')
+                    line = line.strip(')')
+                    file.write('{}\n'.format(line))
 
     def dynamic_response_add_list1_items(self):
         """ Adds all stories and the TLCD to list 1. Takes from inputData.

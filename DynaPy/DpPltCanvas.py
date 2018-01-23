@@ -28,7 +28,7 @@ class PltCanvas(FigureCanvas):
 
         for i, j in plotList:
             if j:
-                if i[0:4] != 'TLCD':
+                if not ('TLCD' in i):
                     n = int(i.split('Story ')[1]) - 1
                     x = dynamicResponse.x[n, :].A1
                     self.axes.plot(t, x, c=next(cycol), label=i)
@@ -55,7 +55,7 @@ class PltCanvas(FigureCanvas):
 
         for i, j in plotList:
             if j:
-                if i != 'TLCD':
+                if not ('TLCD' in i):
                     n = int(i.split('Story ')[1]) - 1
                     v = dynamicResponse.v[n, :].A1
                     self.axes.plot(t, v, c=next(cycol), label=i)
@@ -81,7 +81,7 @@ class PltCanvas(FigureCanvas):
 
         for i, j in plotList:
             if j:
-                if i != 'TLCD':
+                if not ('TLCD' in i):
                     n = int(i.split('Story ')[1]) - 1
                     a = dynamicResponse.a[n, :].A1
                     self.axes.plot(t, a, c=next(cycol), label=i)
@@ -154,7 +154,7 @@ class PltCanvas(FigureCanvas):
 
         for i, j in plotList:
             if j:
-                if i != 'TLCD':
+                if not ('TLCD' in i):
                     n = int(i.split('Story ')[1]) - 1
                     x = dynamicResponse.x[n, :].A1
                     v = dynamicResponse.v[n, :].A1
