@@ -1,5 +1,5 @@
 import numpy as np
-from DynaPy.libs.DynaSolver import ODESolver
+from .DynaSolver import ODESolver
 
 
 class OutputData(object):

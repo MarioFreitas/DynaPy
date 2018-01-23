@@ -1,6 +1,6 @@
 from copy import copy
 
-from DynaPy.libs.DpConfigurations import Configurations
+from .DpConfigurations import Configurations
 import numpy as np
 import sympy
 

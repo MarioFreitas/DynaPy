@@ -11,23 +11,12 @@ import os
 import re
 import sys
 
-from DynaPy.libs.DpConfigurations import Configurations
-from DynaPy.libs.DpInputData import InputData
-from DynaPy.libs.DpOutputDMF import OutputDMF
-from DynaPy.libs.DpOutputData import OutputData
-from DynaPy.libs.DpPltCanvas import PltCanvas
-from DynaPy.libs.DpStory import Story
-from DynaPy.libs.DpStructureCanvas import StructureCanvas
-from DynaPy.libs.DpTLCD import TLCD
-from DynaPy.libs.DpTLCDCanvas import TLCDCanvas
-from DynaPy.libs.DpExcitation import Excitation
-from DynaPy.GUI.mainWindowGUI import Ui_MainWindow
-from DynaPy.excitationGenerator import MainWindow as ExcitationGenerator
+from DynaPy import *
+from GUI.mainWindowGUI import Ui_MainWindow
+from excitationGenerator import MainWindow as ExcitationGenerator
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from libs.DynaSolver import *
-from libs.lib import get_text
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 
 inputData = InputData()
