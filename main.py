@@ -1,5 +1,5 @@
 """
-Script name: TLCD Analyser GUI
+Script name: DynaPy
 Author: Mario Raul Freitas
 
 This script contains the Graphical User Interface code for the TLCD Analyser software.
