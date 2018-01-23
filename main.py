@@ -456,7 +456,11 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             self.storyNumberComboBox.addItem(str(i + 1))
 
         if tlcdData is not None:
-            inputData.tlcd = TLCD(tlcdData[0], tlcdData[1], tlcdData[2], tlcdData[3])
+            if tlcdData[0] == 'Basic TLCD':
+                inputData.tlcd = TLCD(tlcdData[0], tlcdData[1], tlcdData[2], tlcdData[3], amount=tlcdData[4], contraction=tlcdData[5])
+            elif tlcdData[0] == 'Pressurized TLCD':
+                inputData.tlcd = TLCD(tlcdData[0], tlcdData[1], tlcdData[2], tlcdData[3], tlcdData[4], tlcdData[5], tlcdData[6], tlcdData[7])
+
         if excitationData[0] == 'Sine Wave':
             inputData.excitation = Excitation(excitationData[0], excitationData[1], excitationData[2],
                                               excitationData[3], excitationData[4], excitationData[5],
@@ -481,6 +485,19 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             self.diameterSimpleTlcdLineEdit.setText(str(inputData.tlcd.diameter * 100))
             self.widthSimpleTlcdLineEdit.setText(str(inputData.tlcd.width * 100))
             self.waterLevelSimpleTlcdLineEdit.setText(str(inputData.tlcd.waterHeight * 100))
+            self.amountSimpleTlcdLineEdit.setText(str(inputData.tlcd.amount))
+            self.contractionSimpleTlcdLineEdit.setText(str(inputData.tlcd.contraction))
+            self.tlcdWidget.tlcdCanvas.painter(inputData.tlcd)
+        elif inputData.tlcd.type == 'Pressurized TLCD':
+            tlcdTypeIndex = self.tlcdModelComboBox.findText(str(inputData.tlcd.type))
+            self.tlcdModelComboBox.setCurrentIndex(tlcdTypeIndex)
+            self.diameterPressureTlcdLineEdit.setText(str(inputData.tlcd.diameter * 100))
+            self.widthPressureTlcdLineEdit.setText(str(inputData.tlcd.width * 100))
+            self.waterLevelPressureTlcdLineEdit.setText(str(inputData.tlcd.waterHeight * 100))
+            self.gasHeightPressureTlcdLineEdit.setText(str(inputData.tlcd.gasHeight * 100))
+            self.gasPressurePressureTlcdLineEdit.setText(str(inputData.tlcd.gasPressure / 101325))
+            self.amountPressureTlcdLineEdit.setText(str(inputData.tlcd.amount))
+            self.contractionPressureTlcdLineEdit.setText(str(inputData.tlcd.contraction))
             self.tlcdWidget.tlcdCanvas.painter(inputData.tlcd)
 
         exctTypeIndex = self.excitationTypeComboBox.findText(str(inputData.excitation.type))
@@ -567,8 +584,10 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             tlcd = inputData.tlcd
             if tlcd is None:
                 tlcdData = None
-            else:
-                tlcdData = (tlcd.type, tlcd.diameter, tlcd.width, tlcd.waterHeight)
+            elif tlcd.type == 'Basic TLCD':
+                tlcdData = (tlcd.type, tlcd.diameter, tlcd.width, tlcd.waterHeight, tlcd.amount, tlcd.contraction)
+            elif tlcd.type == 'Pressurized TLCD':
+                tlcdData = (tlcd.type, tlcd.diameter, tlcd.width, tlcd.waterHeight, tlcd.gasHeight, tlcd.gasPressure, tlcd.amount, tlcd.contraction)
             self.file.write('{}\n'.format(tlcdData))
 
             self.file.write('\nExcitation: \n-------------------\n')
