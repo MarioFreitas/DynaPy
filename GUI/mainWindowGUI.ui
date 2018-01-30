@@ -1025,7 +1025,9 @@ p, li { white-space: pre-wrap; }
       <string>Methods</string>
      </property>
      <addaction name="actionFiniteDifferenceMethod"/>
+     <addaction name="actionAverageAccelerationMethod"/>
      <addaction name="actionLinearAccelerationMethod"/>
+     <addaction name="actionRungeKuttaMethod"/>
     </widget>
     <addaction name="menuMethods"/>
     <addaction name="actionStepSize"/>
@@ -1385,7 +1387,81 @@ p, li { white-space: pre-wrap; }
     <string>Wombat</string>
    </property>
   </action>
+  <action name="actionAverageAccelerationMethod">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Average Acceleration Method</string>
+   </property>
+  </action>
+  <action name="actionNewmarkMethod">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Newmark Method</string>
+   </property>
+  </action>
+  <action name="actionRungeKuttaMethod">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Runge-Kutta Method</string>
+   </property>
+  </action>
  </widget>
+ <tabstops>
+  <tabstop>tabWidget</tabstop>
+  <tabstop>widget</tabstop>
+  <tabstop>storyNumberComboBox</tabstop>
+  <tabstop>storyMassLineEdit</tabstop>
+  <tabstop>storyHeightLineEdit</tabstop>
+  <tabstop>columnWidthLineEdit</tabstop>
+  <tabstop>columnDepthLineEdit</tabstop>
+  <tabstop>elasticityModuleLineEdit</tabstop>
+  <tabstop>supportTypeComboBox</tabstop>
+  <tabstop>addStoryBtn</tabstop>
+  <tabstop>removeStoryBtn</tabstop>
+  <tabstop>tlcdModelComboBox</tabstop>
+  <tabstop>diameterSimpleTlcdLineEdit</tabstop>
+  <tabstop>waterLevelSimpleTlcdLineEdit</tabstop>
+  <tabstop>widthSimpleTlcdLineEdit</tabstop>
+  <tabstop>amountSimpleTlcdLineEdit</tabstop>
+  <tabstop>contractionSimpleTlcdLineEdit</tabstop>
+  <tabstop>diameterPressureTlcdLineEdit</tabstop>
+  <tabstop>waterLevelPressureTlcdLineEdit</tabstop>
+  <tabstop>widthPressureTlcdLineEdit</tabstop>
+  <tabstop>gasHeightPressureTlcdLineEdit</tabstop>
+  <tabstop>gasPressurePressureTlcdLineEdit</tabstop>
+  <tabstop>amountPressureTlcdLineEdit</tabstop>
+  <tabstop>contractionPressureTlcdLineEdit</tabstop>
+  <tabstop>confirmTlcdBtn</tabstop>
+  <tabstop>excitationTypeComboBox</tabstop>
+  <tabstop>sineAmplitudeLineEdit</tabstop>
+  <tabstop>sineFrequencyLineEdit</tabstop>
+  <tabstop>sineFrequencyRatioCheckBox</tabstop>
+  <tabstop>sineExcitationDurationLineEdit</tabstop>
+  <tabstop>sineAnalysisDurationLineEdit</tabstop>
+  <tabstop>excitationFileLineEdit</tabstop>
+  <tabstop>importExcitationButton</tabstop>
+  <tabstop>generateExcitationButton</tabstop>
+  <tabstop>confirmExcitationButton</tabstop>
+  <tabstop>reportTextBrowser</tabstop>
+  <tabstop>list1</tabstop>
+  <tabstop>addToPlotButton</tabstop>
+  <tabstop>removeFromPlotButton</tabstop>
+  <tabstop>list2</tabstop>
+  <tabstop>plotTypeComboBox</tabstop>
+  <tabstop>plotButton</tabstop>
+  <tabstop>list3</tabstop>
+  <tabstop>addToDMFPlot</tabstop>
+  <tabstop>removeFromDMFPlot</tabstop>
+  <tabstop>list4</tabstop>
+  <tabstop>dmfPlotTypeComboBox</tabstop>
+  <tabstop>dmfPlotButton</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

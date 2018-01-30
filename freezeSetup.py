@@ -18,13 +18,13 @@ targetName = 'Dynapy TLCD Analyser.exe'
 
 # build options
 directory = 'C:/Users/MarioRaul/Desktop/DynaPy Builds/build - {}.{:02d}.{:02d}/exe.win32-3.6/'.format(year, month, day)
-packages = ['matplotlib', 'atexit', 'PyQt5.QtCore', 'tkinter', 'numpy']
+packages = ['matplotlib', 'atexit', 'tkinter', 'numpy']
 includes = []
 include_files = [os.path.join(PYTHON_INSTALL_DIR, 'DLLs', 'tk86t.dll'),
                  os.path.join(PYTHON_INSTALL_DIR, 'DLLs', 'tcl86t.dll'),
-                 'icon_64.ico',
-                 'C:\Python36\Lib\site-packages\DynaPy\TLCD\save',
-                 'C:\Python36\Lib\site-packages\DynaPy\TLCD\css']
+                 './img/icon_64.ico',
+                 './save',
+                 './GUI']
 excludes = ['zmq']
 zip_include_packages = ['asncio', 'ctypes', 'collections', 'curses', 'dateutil', 'distutils', 'DynaPy', 'email',
                         'encodings', 'imageformats', 'importlib', 'lib2to3', 'logging', 'matplotlib', 'mpl-data',

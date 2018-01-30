@@ -119,7 +119,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionSaveAs.triggered.connect(self.save_file_as)
         self.actionQuit.triggered.connect(self.close)
         self.actionFiniteDifferenceMethod.triggered.connect(self.set_method_mdf)
+        self.actionAverageAccelerationMethod.triggered.connect(self.set_method_avg_accel)
         self.actionLinearAccelerationMethod.triggered.connect(self.set_method_lin_accel)
+        self.actionRungeKuttaMethod.triggered.connect(self.set_method_rk4)
         self.actionStepSize.triggered.connect(self.time_step)
         self.actionBoundaryConditions.triggered.connect(self.boundary_conditions)
         self.actionStructureDamping.triggered.connect(self.structure_damping)
@@ -788,12 +790,33 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             QMessageBox.warning(self, error10_title, error10_msg, QMessageBox.Ok)
 
     def set_method_mdf(self):
+        inputData.configurations.method='Finite Differences Method'
         self.actionFiniteDifferenceMethod.setChecked(True)
+        self.actionAverageAccelerationMethod.setChecked(False)
         self.actionLinearAccelerationMethod.setChecked(False)
+        self.actionRungeKuttaMethod.setChecked(False)
+
+    def set_method_avg_accel(self):
+        inputData.configurations.method='Average Acceleration Method'
+        self.actionFiniteDifferenceMethod.setChecked(False)
+        self.actionAverageAccelerationMethod.setChecked(True)
+        self.actionLinearAccelerationMethod.setChecked(False)
+        self.actionRungeKuttaMethod.setChecked(False)
 
     def set_method_lin_accel(self):
+        inputData.configurations.method='Linear Acceleration Method'
         self.actionFiniteDifferenceMethod.setChecked(False)
+        self.actionAverageAccelerationMethod.setChecked(False)
         self.actionLinearAccelerationMethod.setChecked(True)
+        self.actionRungeKuttaMethod.setChecked(False)
+
+    def set_method_rk4(self):
+        inputData.configurations.method='Runge-Kutta Method'
+        self.actionFiniteDifferenceMethod.setChecked(False)
+        self.actionAverageAccelerationMethod.setChecked(False)
+        self.actionLinearAccelerationMethod.setChecked(False)
+        self.actionRungeKuttaMethod.setChecked(True)
+
 
     def run_dynamic_response(self):
         if inputData.stories == {} or inputData.excitation is None:

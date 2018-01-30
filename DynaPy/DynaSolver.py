@@ -33,9 +33,24 @@ class ODESolver(object):
 
         if configurations.method == 'Finite Differences Method':
             if configurations.nonLinearAnalysis and (self.tlcd is not None):
-                self.fdm_solver_non_linear()
+                self.fdm_solver(nonlinear=True)
             else:
-                self.fdm_solver()
+                self.fdm_solver(nonlinear=False)
+        elif configurations.method == 'Average Acceleration Method':
+            if configurations.nonLinearAnalysis and (self.tlcd is not None):
+                self.newmark_solver(gamma=1/2, beta=1/4, nonlinear=True)
+            else:
+                self.newmark_solver(gamma=1/2, beta=1/4, nonlinear=False)
+        elif configurations.method == 'Linear Acceleration Method':
+            if configurations.nonLinearAnalysis and (self.tlcd is not None):
+                self.newmark_solver(gamma=1/2, beta=1/6, nonlinear=True)
+            else:
+                self.newmark_solver(gamma=1/2, beta=1/6, nonlinear=False)
+        elif configurations.method == 'Runge-Kutta Method':
+            if configurations.nonLinearAnalysis and (self.tlcd is not None):
+                self.rk4_solver(nonlinear=True)
+            else:
+                self.rk4_solver(nonlinear=False)
 
     def unpack(self):
         self.M = self.mass
@@ -58,8 +73,11 @@ class ODESolver(object):
         self.a0 = self.M.I * (self.F[:, 0] - self.C * self.v[:, 0] - self.K * self.x[:, 0])
         self.a[:, 0] = self.a0
 
-    def fdm_solver(self):
+    def fdm_solver(self, nonlinear=False):
         self.unpack()
+
+        if nonlinear:
+            self.damping_update_fdm(0)
 
         self.alpha = (self.M / (self.dt ** 2) - self.C / (2 * self.dt))
         self.beta = (self.K - 2 * self.M / (self.dt ** 2))
@@ -69,6 +87,14 @@ class ODESolver(object):
         self.x[:, 1] = self.gamma.I * (self.F[:, 0] - self.beta * self.x[:, 0] - self.alpha * self.xm1)
 
         for i in list(range(1, len(self.t[1:]))):
+            if nonlinear:
+                if i >= 2:
+                    self.damping_update_fdm(i)
+
+                    self.alpha = (self.M / (self.dt ** 2) - self.C / (2 * self.dt))
+                    self.beta = (self.K - 2 * self.M / (self.dt ** 2))
+                    self.gamma = (self.M / (self.dt ** 2) + self.C / (2 * self.dt))
+
             self.x[:, i + 1] = self.gamma.I * (self.F[:, i] - self.beta * self.x[:, i] - self.alpha * self.x[:, i - 1])
 
         i = len(self.t[1:])
@@ -79,52 +105,100 @@ class ODESolver(object):
         self.v = (self.xMais1 - self.xMenos1) / (2 * self.dt)
         self.a = (self.xMais1 - 2 * self.x + self.xMenos1) / (self.dt ** 2)
 
-    def fdm_solver_non_linear(self):
-        self.unpack()
-
-        C_original = copy(self.C)
+    def damping_update_fdm(self, i):
         correctionStart = self.C.shape[1] - 1
         correctionStop = correctionStart - self.tlcd.amount
-        self.dampingVelocityArray = copy(self.v[-1, :])
 
-        velocity = self.dampingVelocityArray[0, 0]
+        if i >= 2:
+            self.dampingVelocityArray[0, i + 1] = (self.x[-1, i-2] - self.x[-1, i]) / (2 * self.dt)
+            velocity = abs(self.dampingVelocityArray[0, i + 1])
+        else:
+            self.dampingVelocityArray = copy(self.v[-1, :])
+            velocity = self.dampingVelocityArray[0, 0]
 
         correctionFactor = self.tlcd.calculate_damping_correction_factor(velocity)
-        for i in range(correctionStart, correctionStop, -1):
-            self.C[i, i] *= correctionFactor
+        contractionDampingCoefficient = self.tlcd.calculate_contraction_damping(velocity)
 
-        self.alpha = (self.M / (self.dt ** 2) - self.C / (2 * self.dt))
-        self.beta = (self.K - 2 * self.M / (self.dt ** 2))
-        self.gamma = (self.M / (self.dt ** 2) + self.C / (2 * self.dt))
+        for j in range(correctionStart, correctionStop, -1):
+            self.C[j, j] = self.tlcd.dampingCoefficientConstant * correctionFactor
+            self.C[j, j] += contractionDampingCoefficient
 
-        self.xm1 = self.x[:, 0] - self.v[:, 0] * self.dt + (self.a[:, 0] * self.dt ** 2) / 2
-        self.x[:, 1] = self.gamma.I * (self.F[:, 0] - self.beta * self.x[:, 0] - self.alpha * self.xm1)
+    
+    def newmark_solver(self, gamma=1/2, beta=1/4, nonlinear=False):
+        self.unpack()
 
-        for i in list(range(1, len(self.t[1:]))):
-            if i >= 2:
-                self.C = copy(C_original)
-                self.dampingVelocityArray[0, i + 1] = (self.x[-1, i-2] - self.x[-1, i]) / (2 * self.dt)
-                velocity = abs(self.dampingVelocityArray[0, i + 1])
+        k_eff = self.K + gamma/(beta*self.dt) * self.C + 1/(beta*self.dt**2) * self.M
+        a = 1/(beta*self.dt) * self.M + gamma/beta * self.C
+        b = 1/(2*beta) * self.M + self.dt * (gamma/(2*beta) - 1) * self.C
+        
+        for i in list(range(0, len(self.t[1:]) - 1)):
+            if nonlinear:
+                self.damping_update_nm(i)
 
-                correctionFactor = self.tlcd.calculate_damping_correction_factor(velocity)
-                contractionDampingCoefficient = self.tlcd.calculate_contraction_damping(velocity)
-                for j in range(correctionStart, correctionStop, -1):
-                    self.C[j, j] *= correctionFactor
-                    self.C[j, j] += contractionDampingCoefficient
+            dp_eff = (self.F[:, i+1] - self.F[:, i]) + (a * self.v[:, i]) + (b * self.a[:, i])
+            dx = k_eff.I * dp_eff
+            dv = gamma/(beta * self.dt)*dx - gamma/beta*self.v[:, i] + self.dt * (1 - gamma/(2*beta)) * self.a[:, i]
+            da = 1/(beta*self.dt**2)*dx - 1/(beta*self.dt)*self.v[:, i] - 1/(2*beta)*self.a[:, i]
+            
+            self.x[:, i+1] = self.x[:, i] + dx
+            self.v[:, i+1] = self.v[:, i] + dv
+            self.a[:, i+1] = self.a[:, i] + da
 
-                self.alpha = (self.M / (self.dt ** 2) - self.C / (2 * self.dt))
-                self.beta = (self.K - 2 * self.M / (self.dt ** 2))
-                self.gamma = (self.M / (self.dt ** 2) + self.C / (2 * self.dt))
+    
+    def damping_update_nm(self, i):
+        correctionStart = self.C.shape[1] - 1
+        correctionStop = correctionStart - self.tlcd.amount
 
-            self.x[:, i + 1] = self.gamma.I * (self.F[:, i] - self.beta * self.x[:, i] - self.alpha * self.x[:, i - 1])
+        if i >= 1:
+            velocity = abs(self.v[-1, i])
+        else:
+            velocity = abs(self.v[-1, 0])
 
-        i = len(self.t[1:])
-        self.xM1 = self.gamma.I * (self.F[:, i] - self.beta * self.x[:, i] - self.alpha * self.x[:, i - 1])
-        self.xMais1 = np.concatenate((self.x[:, 1:], self.xM1), axis=1)
-        self.xMenos1 = np.concatenate((self.xm1, self.x[:, 0:-1]), axis=1)
+        correctionFactor = self.tlcd.calculate_damping_correction_factor(velocity)
+        contractionDampingCoefficient = self.tlcd.calculate_contraction_damping(velocity)
 
-        self.v = (self.xMais1 - self.xMenos1) / (2 * self.dt)
-        self.a = (self.xMais1 - 2 * self.x + self.xMenos1) / (self.dt ** 2)
+        for j in range(correctionStart, correctionStop, -1):
+            self.C[j, j] = self.tlcd.dampingCoefficientConstant * correctionFactor
+            self.C[j, j] += contractionDampingCoefficient
+            # print(velocity)
+            # print(self.tlcd.dampingCoefficientConstant, correctionFactor, contractionDampingCoefficient)
+            # print(self.C[j, j])
+
+    def rk4_solver(self, nonlinear=False):
+        self.unpack()
+
+        for i in list(range(0, len(self.t[1:]) - 1)):
+            if nonlinear:
+                self.damping_update_nm(i)
+
+            # First point
+            t = self.t[i]
+            x = self.x[:, i]
+            y1 = self.v[:, i]
+            y1_ = self.M.I * (self.F[:, i] - self.C * y1 - self.K * x)
+
+            # Second point
+            t = self.t[i] + self.dt/2
+            x = self.x[:, i] + self.dt/2 * y1
+            y2 = self.v[:, i] + self.dt/2 * y1_
+            y2_ = self.M.I * (self.F[:, i] - self.C * y2 - self.K * x)
+
+            # Third point
+            t = self.t[i] + self.dt/2
+            x = self.x[:, i] + self.dt/2 * y2
+            y3 = self.v[:, i] + self.dt/2 * y2_
+            y3_ = self.M.I * (self.F[:, i] - self.C * y3 - self.K * x)
+
+            # Fourth point
+            t = self.t[i] + self.dt
+            x = self.x[:, i] + self.dt * y3
+            y4 = self.v[:, i] + self.dt * y3_
+            y4_ = self.M.I * (self.F[:, i] - self.C * y4 - self.K * x)
+
+            # Update
+            self.x[:, i+1] = self.x[:, i] + self.dt/6 * (y1 + 2*y2 + 2*y3 + y4)
+            self.v[:, i+1] = self.v[:, i] + self.dt/6 * (y1_ + 2*y2_ + 2*y3_ + y4_)
+
 
     def modal_superposition_solver(self):
         pass
