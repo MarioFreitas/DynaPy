@@ -109,7 +109,7 @@ class ODESolver(object):
         correctionStart = self.C.shape[1] - 1
         correctionStop = correctionStart - self.tlcd.amount
 
-        if i >= 2:
+        if i >= 1:
             self.dampingVelocityArray[0, i + 1] = (self.x[-1, i-2] - self.x[-1, i]) / (2 * self.dt)
             velocity = abs(self.dampingVelocityArray[0, i + 1])
         else:
@@ -126,18 +126,18 @@ class ODESolver(object):
     
     def newmark_solver(self, gamma=1/2, beta=1/4, nonlinear=False):
         self.unpack()
-
-        k_eff = self.K + gamma/(beta*self.dt) * self.C + 1/(beta*self.dt**2) * self.M
-        a = 1/(beta*self.dt) * self.M + gamma/beta * self.C
-        b = 1/(2*beta) * self.M + self.dt * (gamma/(2*beta) - 1) * self.C
         
         for i in list(range(0, len(self.t[1:]) - 1)):
             if nonlinear:
                 self.damping_update_nm(i)
 
+            k_eff = self.K + gamma/(beta*self.dt) * self.C + 1/(beta*self.dt**2) * self.M
+            a = 1/(beta*self.dt) * self.M + gamma/beta * self.C
+            b = 1/(2*beta) * self.M + self.dt * ((gamma/(2*beta)) - 1) * self.C
+
             dp_eff = (self.F[:, i+1] - self.F[:, i]) + (a * self.v[:, i]) + (b * self.a[:, i])
             dx = k_eff.I * dp_eff
-            dv = gamma/(beta * self.dt)*dx - gamma/beta*self.v[:, i] + self.dt * (1 - gamma/(2*beta)) * self.a[:, i]
+            dv = gamma/(beta * self.dt)*dx - gamma/beta*self.v[:, i] + self.dt * (1 - (gamma/(2*beta))) * self.a[:, i]
             da = 1/(beta*self.dt**2)*dx - 1/(beta*self.dt)*self.v[:, i] - 1/(2*beta)*self.a[:, i]
             
             self.x[:, i+1] = self.x[:, i] + dx

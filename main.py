@@ -377,7 +377,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # Reset save file
         self.fileName = None
-        self.setWindowTitle('Dynapy TLCD Analyser')
+        self.setWindowTitle('Dynapy')
 
         # Reset GUI
         for i in range(self.storyNumberComboBox.count() - 1, 0, -1):
@@ -863,7 +863,7 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             self.runSimulationThread.start()
 
     def run_dmf(self):
-        if inputData.stories == {} or inputData.excitation is None:
+        if inputData.stories == {}:
             error04B_title = "Error 04B"
             error04B_msg = "Fill in all data in Structure, TLCD and Excitation tabs before trying" + \
                            " to calculate dynamic magnification factor."
@@ -882,8 +882,18 @@ Preencha todos os dados e utilize o  comando "Calcular" para gerar o relatório.
             for i in inputData.stories.values():
                 i.calc_damping_coefficient(inputData.configurations.dampingRatio)
 
-            # Confirm excitation
-            self.add_excitation()
+            # Add sine excitation
+            exct_type = 'Sine Wave'
+
+            amplitude = 1
+            frequency = 1
+            relativeFrequency = False
+            exctDuration = 10
+            anlyDuration = 10
+
+            excitation = Excitation(exct_type, amplitude, frequency, relativeFrequency, exctDuration, anlyDuration,
+                                    structure=inputData.stories, tlcd=inputData.tlcd)
+            inputData.excitation = excitation
 
             naturalFrequencies = []
             for i in inputData.stories.values():

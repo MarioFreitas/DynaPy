@@ -1029,12 +1029,21 @@ p, li { white-space: pre-wrap; }
      <addaction name="actionLinearAccelerationMethod"/>
      <addaction name="actionRungeKuttaMethod"/>
     </widget>
+    <widget class="QMenu" name="menuStructure_Model">
+     <property name="title">
+      <string>Structure Model</string>
+     </property>
+     <addaction name="actionShear_Building"/>
+     <addaction name="actionBeam_Model"/>
+    </widget>
     <addaction name="menuMethods"/>
-    <addaction name="actionStepSize"/>
+    <addaction name="menuStructure_Model"/>
+    <addaction name="separator"/>
     <addaction name="actionBoundaryConditions"/>
-    <addaction name="actionStructureDamping"/>
     <addaction name="actionFluidParameters"/>
     <addaction name="actionDMFSettings"/>
+    <addaction name="actionStepSize"/>
+    <addaction name="actionStructureDamping"/>
    </widget>
    <widget class="QMenu" name="menuRun">
     <property name="title">
@@ -1409,6 +1418,25 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="text">
     <string>Runge-Kutta Method</string>
+   </property>
+  </action>
+  <action name="actionShear_Building">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Shear Building</string>
+   </property>
+  </action>
+  <action name="actionBeam_Model">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Beam Model</string>
    </property>
   </action>
  </widget>

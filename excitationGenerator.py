@@ -213,8 +213,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         t = []
         a = []
         for i in range(self.tableWidget.rowCount()):
-            x = get_text(self.tableWidget.item(i, 0))
-            y = get_text(self.tableWidget.item(i, 1))
+            x = float(get_text(self.tableWidget.item(i, 0)))
+            y = float(get_text(self.tableWidget.item(i, 1)))
             t.append(x)
             a.append(y)
 
